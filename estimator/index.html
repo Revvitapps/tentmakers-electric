@@ -1,2 +1,227 @@
-<!doctype html><html><head><meta charset="utf-8"><title>LED Recessed Lighting Estimator</title></head>
-<body>Paste the final estimator HTML/CSS/JS here.</body></html>
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>LED Recessed Lighting Estimator</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{
+    --brand-gray:#58595B;
+    --brand-orange:#F7941D;
+    --brand-white:#FFFFFF;
+    --text-dark:#2E2F30;
+    --text-mid:#6F7072;
+    --border:#E7E7E9;
+    --bg-soft:#FAFAFB;
+  }
+  body{background:#F6F7F9;margin:0;padding:16px;font-family:Montserrat, Arial, sans-serif;color:var(--text-dark);}
+  .tmx-card{max-width:780px;margin:0 auto;background:var(--brand-white);border:1px solid var(--border);border-radius:16px;padding:22px;}
+  .tmx-head{text-align:center;margin-bottom:16px;}
+  .tmx-head img{height:40px;width:auto;display:block;margin:0 auto 8px auto;}
+  .tmx-h{margin:0;font-size:22px;color:var(--brand-gray);font-weight:800;line-height:1.3;}
+  .tmx-sub{margin:6px 0 14px 0;color:var(--text-mid);font-size:14px;line-height:1.4;}
+  .tmx-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .tmx-grid>*{min-width:0;}
+  label{display:block;font-weight:700;margin:8px 0 6px 0;font-size:14px;color:#3B3C3D;}
+  select,input[type="number"],input[type="text"],textarea{width:100%;padding:10px;border:1px solid #D7D7DB;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box;}
+  textarea{min-height:70px;resize:vertical;}
+  .tmx-help{font-size:12px;color:#7A7B7D;line-height:1.4;margin-top:4px;}
+  .tmx-summary{margin-top:20px;background:var(--bg-soft);border:1px solid var(--border);border-radius:12px;padding:16px;}
+  .tmx-summary-headline{font-size:15px;font-weight:700;color:var(--brand-gray);margin:0 0 6px 0;}
+  .tmx-money{font-size:28px;font-weight:900;color:#059669;margin:0;line-height:1.2;}
+  .tmx-breakdown{font-size:13px;color:#3E3F41;margin-top:10px;line-height:1.5;}
+  .tmx-note{font-size:12px;color:#7A7B7D;margin-top:12px;line-height:1.5;}
+  .tmx-cta{margin-top:20px;text-align:center;}
+  .tmx-cta button{background:var(--brand-orange);color:#FFFFFF;font-weight:800;padding:12px 18px;border-radius:10px;display:inline-block;border:none;font-size:16px;line-height:1.2;cursor:pointer;width:auto;min-width:220px;}
+  .tmx-photo-wrap{border:1px solid var(--border);background:#FFFDF8;border-radius:12px;padding:14px;margin-top:10px;}
+  .tmx-photo-wrap label{font-weight:600;font-size:14px;color:#3B3C3D;margin:0 0 8px 0;}
+  .tmx-photo-wrap input[type="file"]{display:block;margin-top:8px;font-size:13px;color:#3B3C3D;}
+  .tmx-legal{font-size:11px;color:#7A7B7D;line-height:1.5;margin-top:18px;border-top:1px solid var(--border);padding-top:12px;}
+  @media(max-width:640px){.tmx-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="tmx-card" id="tmxCalc">
+  <div class="tmx-head">
+    <img src="https://static.wixstatic.com/media/466b09_38f375647c9040c68a3138baac578e62~mv2.png" alt="Tentmakers Electric word mark">
+    <h2 class="tmx-h">LED Recessed Lighting Special</h2>
+    <p class="tmx-sub">$750 to add (4) new recessed LED lights to your room.<br/>Light up your space and give it a new touch!</p>
+    <p class="tmx-sub" style="font-size:12px; color:#3B3C3D;">Price assumes attic access above the ceiling and wiring to an existing switch leg.</p>
+  </div>
+
+  <form id="tmxForm" action="ACTION_URL_GOES_HERE" method="POST" enctype="multipart/form-data">
+    <div class="tmx-grid">
+      <div>
+        <label for="room">Which room are we lighting?</label>
+        <select id="room" name="room">
+          <option>Kitchen</option><option>Living Room</option><option>Hallway</option>
+          <option>Bedroom</option><option>Office</option><option>Other / Multi-room</option>
+        </select>
+      </div>
+      <div>
+        <label for="lights">Total number of LED recessed lights</label>
+        <input id="lights" name="lights" type="number" min="1" step="1" value="4">
+        <div class="tmx-help">First 4 lights are included in the $750 special. Extra lights add cost.</div>
+      </div>
+      <div>
+        <label for="height">Ceiling height in this area</label>
+        <select id="height" name="height">
+          <option value="under10">Under 10 ft</option>
+          <option value="10to12">10–12 ft</option>
+          <option value="12to15">12–15 ft</option>
+          <option value="over15">Above 15 ft</option>
+        </select>
+        <div class="tmx-help">10–12 ft +$200 • 12–15 ft +$300 • Above 15 ft +$400</div>
+      </div>
+      <div>
+        <label for="finish">Preferred trim / bezel color</label>
+        <select id="finish" name="finish">
+          <option value="white">White trim (standard)</option>
+          <option value="black">Black trim / dark bezel</option>
+          <option value="brushed">Brushed / specialty finish</option>
+        </select>
+        <div class="tmx-help">Let us know if you want something specific to match décor.</div>
+      </div>
+      <div>
+        <label for="dimmer">Smart lighting or dimmer control?</label>
+        <select id="dimmer" name="dimmer">
+          <option value="none">Standard on/off is fine</option>
+          <option value="dimmer">Add dimmer (+$100)</option>
+          <option value="smart">Smart switch / smart dimmer (quote)</option>
+        </select>
+        <div class="tmx-help">$100 to add a dimmer upgrade. Smart lighting available — we'll review options.</div>
+      </div>
+      <div>
+        <label for="switch">Wall switch situation</label>
+        <select id="switch" name="switch">
+          <option value="existing">Use existing wall switch</option>
+          <option value="newleg">Need a new switch leg down the wall (+$150)</option>
+          <option value="doublegang">Need to convert single box to double box (+$150)</option>
+        </select>
+        <div class="tmx-help">We'll confirm final layout by walkthrough or photos.</div>
+      </div>
+      <div>
+        <label for="attic">Is there attic access above this ceiling?</label>
+        <select id="attic" name="attic">
+          <option value="yes">Yes, attic access above</option>
+          <option value="no">No attic access / second story above</option>
+        </select>
+        <div class="tmx-help">No attic access may require drywall cuts and additional labor.</div>
+      </div>
+      <div>
+        <label for="contact">Best phone or email so we can follow up</label>
+        <input id="contact" name="contact" type="text" placeholder="(704) 555-1234 / you@email.com">
+        <div class="tmx-help">We’ll reach out to confirm, or request photos if needed.</div>
+      </div>
+      <div style="grid-column:1 / -1;">
+        <label for="notes">Anything else you want? (Smart lighting, panel work, EV charger, etc.)</label>
+        <textarea id="notes" name="notes" placeholder="Additional services needed? Let us know in the comments."></textarea>
+      </div>
+      <div class="tmx-photo-wrap" id="photoWrap" style="grid-column:1 / -1;">
+        <label for="photos">Upload a photo of the ceiling area and the wall switch (optional)</label>
+        <input id="photos" name="photos" type="file" accept="image/*" multiple>
+        <div class="tmx-help">Photos help us confirm pricing faster, especially if there’s no attic access or a second story above.</div>
+      </div>
+    </div>
+
+    <div class="tmx-summary">
+      <p class="tmx-summary-headline">Estimated total</p>
+      <p class="tmx-money" id="tmxTotal">$750</p>
+      <div class="tmx-breakdown" id="tmxBreakdown"></div>
+      <div class="tmx-note">
+        This is an online estimate for planning. Final pricing will be confirmed after photo review or upon arrival on appointment date.<br/>
+        We will contact you if we need any additional information.
+      </div>
+    </div>
+
+    <div class="tmx-cta">
+      <button type="submit">Send My Info</button>
+    </div>
+
+    <div class="tmx-legal">
+      LED recessed lighting pricing is based on standard installations with attic access and tying into an existing switch leg (for example, replacing a single light in the middle of the room with multiple new recessed LEDs).<br/><br/>
+      Ceiling height adjustments: 10–12 ft +$200 • 12–15 ft +$300 • Above 15 ft +$400.<br/>
+      +$100 to add a dimmer upgrade. +$150 if a new switch leg is needed down the wall. +$150 if we must convert a single-gang box to a double-gang box to make room for the new switch.<br/><br/>
+      If there is no attic access or there is a second story above the ceiling, there will be an additional charge and it may include drywall cutting.<br/><br/>
+      Final price will be confirmed by Tentmakers Electric after review.
+    </div>
+  </form>
+</div>
+
+<script>
+(function(){
+  const BASE_SPECIAL = 750;
+  const BASE_LIGHTS_INCLUDED = 4;
+  const EXTRA_LIGHT_COST = 200;
+  const HEIGHT_SURCHARGE = { "under10":0,"10to12":200,"12to15":300,"over15":400 };
+  const DIMMER_UPCHARGE = { "none":0,"dimmer":100,"smart":0 };
+  const SWITCH_UPCHARGE = { "existing":0,"newleg":150,"doublegang":150 };
+
+  const lightsEl = document.getElementById('lights');
+  const heightEl = document.getElementById('height');
+  const dimmerEl = document.getElementById('dimmer');
+  const switchEl = document.getElementById('switch');
+  const atticEl  = document.getElementById('attic');
+  const totalEl = document.getElementById('tmxTotal');
+  const breakdownEl = document.getElementById('tmxBreakdown');
+
+  function calc(){
+    const numLights = Math.max(1, parseInt(lightsEl.value || '4', 10));
+    const heightVal = heightEl.value;
+    const dimmerVal = dimmerEl.value;
+    const switchVal = switchEl.value;
+    const atticVal  = atticEl.value;
+
+    let total = BASE_SPECIAL;
+    const lines = [];
+    lines.push("Base LED recessed lighting special (4 lights, attic access, existing switch): $" + BASE_SPECIAL);
+
+    if (numLights > BASE_LIGHTS_INCLUDED) {
+      const extras = numLights - BASE_LIGHTS_INCLUDED;
+      const extraCost = extras * EXTRA_LIGHT_COST;
+      total += extraCost;
+      lines.push("+ " + extras + " additional light(s): $" + extraCost);
+    }
+
+    const heightCost = HEIGHT_SURCHARGE[heightVal] || 0;
+    if (heightCost > 0) {
+      total += heightCost;
+      if (heightVal === "10to12") lines.push("+ Ceiling height 10–12 ft: $" + heightCost);
+      else if (heightVal === "12to15") lines.push("+ Ceiling height 12–15 ft: $" + heightCost);
+      else if (heightVal === "over15") lines.push("+ Ceiling height above 15 ft: $" + heightCost);
+    }
+
+    const dimmerCost = DIMMER_UPCHARGE[dimmerVal] || 0;
+    if (dimmerCost > 0) {
+      total += dimmerCost;
+      if (dimmerVal === "dimmer") lines.push("+ Dimmer upgrade: $" + dimmerCost);
+    }
+    if (dimmerVal === "smart") lines.push("+ Smart lighting control: quoted after review");
+
+    const switchCost = SWITCH_UPCHARGE[switchVal] || 0;
+    if (switchCost > 0) {
+      total += switchCost;
+      if (switchVal === "newleg") lines.push("+ New switch leg down the wall: $" + switchCost);
+      else if (switchVal === "doublegang") lines.push("+ Convert single-gang to double-gang switch box: $" + switchCost);
+    }
+
+    if (atticVal === "no") {
+      lines.push("! No attic access / second story above: Additional charge may apply and may include drywall cutting. We'll review photos.");
+    }
+
+    totalEl.textContent = "$" + total.toFixed(0);
+    breakdownEl.innerHTML = lines.map(l => "<div>• " + l + "</div>").join("");
+  }
+
+  ['change','input','keyup'].forEach(evt=>{
+    lightsEl.addEventListener(evt, calc);
+    heightEl.addEventListener(evt, calc);
+    dimmerEl.addEventListener(evt, calc);
+    switchEl.addEventListener(evt, calc);
+    atticEl.addEventListener(evt, calc);
+  });
+  calc();
+})();
+</script>
+</body>
+</html>
