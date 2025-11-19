@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
-import { runBookingPipeline } from '@/app/api/sf/book/route';
+import { runBookingPipeline } from '@/lib/sfBooking';
 import type { BookRequest, ThumbtackWebhookEnvelope } from '@/lib/sfTypes';
 import {
   getThumbtackSignature,
