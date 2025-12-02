@@ -60,7 +60,6 @@ export interface Customer {
 
 export type CustomerPhone = {
   phone: string;
-  type?: string;
 };
 
 export interface CustomerCreatePayload {
