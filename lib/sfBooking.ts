@@ -47,7 +47,7 @@ async function createCustomer(payload: BookRequest): Promise<string | number> {
         ? [
             {
               phone: payload.customer.phone,
-              class: 'Mobile'
+              type: 'Mobile'
             }
           ]
         : undefined,
