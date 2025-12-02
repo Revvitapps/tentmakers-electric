@@ -179,7 +179,7 @@ function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
     time_frame_promised_end: endTime,
     start_date: startDate,
     customer_name: fullName,
-    status: 'New',
+    status: 'Estimate Requested',
     contact_first_name: customer.firstName,
     contact_last_name: customer.lastName,
     street_1: customer.addressLine1 ?? null,
