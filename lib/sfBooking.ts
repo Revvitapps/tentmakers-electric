@@ -36,6 +36,7 @@ export async function runBookingPipeline(payload: BookRequest): Promise<BookingP
 
 async function createCustomer(payload: BookRequest): Promise<string | number> {
   const fullName = `${payload.customer.firstName} ${payload.customer.lastName}`.trim();
+  const referralSource = mapReferralSource(payload.source);
 
   const contacts: CustomerCreatePayload['contacts'] = [
     {
@@ -82,7 +83,7 @@ async function createCustomer(payload: BookRequest): Promise<string | number> {
     customer_name: fullName.slice(0, 44), // SF complains above 45 chars
     contacts,
     locations,
-    referral_source: payload.source,
+    referral_source: referralSource,
     private_notes: `Lead source: ${payload.source}`
   };
 
@@ -173,6 +174,29 @@ function buildCalendarDescription(payload: BookRequest) {
   return lines.join(' - ');
 }
 
+function mapReferralSource(source: string): string | undefined {
+  const allowed = [
+    'BNI Group',
+    'Business Phone Line',
+    'Existing Customer',
+    'Google',
+    'Home Depot',
+    'Thumbtack',
+    'Website',
+    'Word of Mouth'
+  ];
+
+  const match = allowed.find(
+    (candidate) => candidate.toLowerCase() === source.trim().toLowerCase()
+  );
+
+  if (match) {
+    return match;
+  }
+
+  // Fallback to a generic allowed source; include original source in notes.
+  return 'Website';
+}
 function extractIdentifier(
   record: Record<string, unknown>,
   fields: string[]
