@@ -111,7 +111,7 @@ async function createEstimate(
     json: estimatePayload
   });
 
-  const id = extractIdentifier(response as Record<string, unknown>, ['id']);
+  const id = response?.id ?? null;
   if (id === null) {
     throw new Error('Estimate response did not include an identifier');
   }
