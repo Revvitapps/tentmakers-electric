@@ -126,8 +126,8 @@ async function createCalendarTask(
   jobId: string | number | null
 ): Promise<string | number | null> {
   const calendarPayload: CalendarTaskCreatePayload = {
-    start_date: payload.schedule.start,
-    end_date: payload.schedule.end,
+    start_date: toSfDate(payload.schedule.start),
+    end_date: toSfDate(payload.schedule.end),
     description: buildCalendarDescription(payload),
     customers_id: [customerId],
     estimates_id: [estimateId],
@@ -159,7 +159,8 @@ function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
   const startIso = schedule.start;
   const endIso = schedule.end;
 
-  const startDate = startIso.slice(0, 10); // YYYY-MM-DD
+  const startDate = toSfDate(startIso); // YYYY-MM-DD
+  const endDate = toSfDate(endIso); // YYYY-MM-DD
   const startTime = startIso.slice(11, 16); // HH:MM
   const endTime = endIso.slice(11, 16); // HH:MM
 
@@ -178,6 +179,7 @@ function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
     time_frame_promised_start: startTime,
     time_frame_promised_end: endTime,
     start_date: startDate,
+    end_date: endDate,
     customer_name: fullName,
     status: 'Estimate Requested',
     contact_first_name: customer.firstName,
@@ -191,6 +193,11 @@ function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
     source: sfSource ?? null,
     note_to_customer: service?.notes ?? null
   };
+}
+
+function toSfDate(iso: string): string {
+  // Normalize to plain YYYY-MM-DD regardless of timezone offset in the input.
+  return new Date(iso).toISOString().slice(0, 10);
 }
 
 function mapReferralSource(source: string): string | undefined {
