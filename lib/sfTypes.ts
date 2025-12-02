@@ -1,14 +1,8 @@
-export interface ServiceFusionConfig {
-  clientId: string;
-  clientSecret: string;
-  apiBase: string;
-}
-
 export interface ServiceFusionTokenResponse {
   access_token: string;
-  token_type: string;
   expires_in: number;
   refresh_token?: string;
+  token_type?: string;
 }
 
 /**
@@ -19,29 +13,55 @@ export interface CalendarTask {
   id: number | string;
   type?: string;
   description?: string;
-  start_date: string;
-  end_date: string;
-  users_id?: number | string;
-  customers_id?: number | string;
-  jobs_id?: number | string;
-  estimates_id?: number | string;
+  start_date?: string; // ISO datetime
+  end_date?: string; // ISO datetime
   is_completed?: boolean;
+  users_id?: number[];
+  customers_id?: number[];
+  jobs_id?: number[];
+  estimates_id?: number[];
   [key: string]: unknown;
 }
 
-/**
- * API responses often wrap arrays under different keys.
- * This keeps it flexible until we have the exact contract.
- */
+export interface CalendarTaskListMeta {
+  totalCount: number;
+  pageCount: number;
+  currentPage: number;
+  perPage: number;
+}
+
 export interface CalendarTaskList {
+  items?: CalendarTask[];
+  _meta?: CalendarTaskListMeta;
+  // Some SF responses wrap under different keys; keep flexible until confirmed.
   data?: CalendarTask[];
   results?: CalendarTask[];
-  items?: CalendarTask[];
-  total?: number;
   [key: string]: unknown;
 }
 
-export interface CustomerPayload {
+export interface CalendarTaskCreatePayload {
+  start_date: string;
+  end_date: string;
+  description: string;
+  customers_id?: number | string | Array<number | string>;
+  jobs_id?: number | string | Array<number | string>;
+  estimates_id?: number | string | Array<number | string>;
+  users_id?: number | string | Array<number | string>;
+  type?: string;
+  [key: string]: unknown;
+}
+
+export interface Customer {
+  id: number | string;
+  customer_id?: number | string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  [key: string]: unknown; // see SF docs for full schema
+}
+
+export interface CustomerCreatePayload {
   first_name: string;
   last_name: string;
   email?: string;
@@ -55,13 +75,15 @@ export interface CustomerPayload {
   [key: string]: unknown;
 }
 
-export interface CustomerResponse {
-  id?: number | string;
-  customer_id?: number | string;
+export interface Estimate {
+  id: number | string;
+  estimate_id?: number | string;
+  description?: string;
+  customers_id?: number;
   [key: string]: unknown;
 }
 
-export interface EstimatePayload {
+export interface EstimateCreatePayload {
   customers_id: number | string;
   description?: string;
   notes?: string;
@@ -70,27 +92,28 @@ export interface EstimatePayload {
   [key: string]: unknown;
 }
 
-export interface EstimateResponse {
-  id?: number | string;
-  estimate_id?: number | string;
-  [key: string]: unknown;
-}
-
-export interface CalendarTaskPayload {
-  start_date: string;
-  end_date: string;
-  description: string;
-  customers_id?: number | string;
-  jobs_id?: number | string;
-  estimates_id?: number | string;
-  users_id?: number | string;
-  type?: string;
-  [key: string]: unknown;
-}
-
 export interface ScheduleWindow {
   start: string;
   end: string;
+}
+
+export interface Job {
+  id: number | string;
+  job_id?: number | string;
+  description?: string;
+  customers_id?: number;
+  estimates_id?: number;
+  [key: string]: unknown;
+}
+
+export interface JobCreatePayload {
+  description?: string;
+  customers_id?: number | string;
+  estimates_id?: number | string;
+  start_date?: string;
+  end_date?: string;
+  users_id?: number | string | Array<number | string>;
+  [key: string]: unknown;
 }
 
 export interface BookRequest {
@@ -111,7 +134,7 @@ export interface BookRequest {
     estimatedPrice?: number;
     options?: Record<string, unknown>;
   };
-  schedule?: ScheduleWindow | null;
+  schedule: ScheduleWindow;
 }
 
 export interface BookingPipelineResult {
@@ -126,5 +149,14 @@ export interface BookingPipelineResult {
 
 export interface ThumbtackWebhookEnvelope {
   event?: string;
-  data: Record<string, unknown>;
+  data?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface ThumbtackTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  token_type: string;
+  expires_in: number;
+  scope?: string;
 }

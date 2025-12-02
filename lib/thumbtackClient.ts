@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import type { ThumbtackWebhookEnvelope } from './sfTypes';
-import { thumbtackWebhookSchema, getThumbtackConfig } from './validation';
+import { getThumbtackConfig, ValidationError } from './validation';
 
 const SIGNATURE_HEADER_CANDIDATES = ['x-thumbtack-signature', 'thumbtack-signature'];
 
@@ -43,5 +43,19 @@ export function verifyThumbtackSignature(payload: string, signature: string | nu
 }
 
 export function parseThumbtackWebhook(body: unknown): ThumbtackWebhookEnvelope {
-  return thumbtackWebhookSchema.parse(body);
+  if (!body || typeof body !== 'object') {
+    throw new ValidationError('Thumbtack webhook payload must be an object');
+  }
+
+  const envelope = body as Record<string, unknown>;
+  const data = envelope.data;
+
+  if (!data || typeof data !== 'object') {
+    throw new ValidationError('Thumbtack webhook payload missing data');
+  }
+
+  return {
+    event: typeof envelope.event === 'string' ? envelope.event : undefined,
+    data: data as Record<string, unknown>
+  };
 }

@@ -1,13 +1,13 @@
 import type { ServiceFusionTokenResponse } from './sfTypes';
-import { computeExpiryTimestamp, isExpired } from './timeUtils';
-import { getServiceFusionConfig } from './validation';
 
 const TOKEN_URL = 'https://api.servicefusion.com/oauth/access_token';
+const DEFAULT_API_BASE = 'https://api.servicefusion.com/v1';
+const EXPIRY_BUFFER_SECONDS = 60;
 
 export interface SFToken {
   accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
+  refreshToken: string | null;
+  expiresAt: number; // epoch ms
 }
 
 export type SFRequestOptions = RequestInit & {
@@ -17,51 +17,66 @@ export type SFRequestOptions = RequestInit & {
 
 let cachedToken: SFToken | null = null;
 
+function requireEnv(name: 'SF_CLIENT_ID' | 'SF_CLIENT_SECRET'): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required env var ${name} for Service Fusion`);
+  }
+  return value;
+}
+
 function getApiBase() {
-  const { apiBase } = getServiceFusionConfig();
-  return apiBase.replace(/\/$/, '');
+  const base = process.env.SF_API_BASE || DEFAULT_API_BASE;
+  return base.replace(/\/$/, '');
+}
+
+function computeExpiresAt(expiresInSeconds: number): number {
+  const safeSeconds = Math.max(expiresInSeconds - EXPIRY_BUFFER_SECONDS, 0);
+  return Date.now() + safeSeconds * 1000;
 }
 
 function appendQueryParams(url: URL, query?: SFRequestOptions['query']) {
-  if (!query) {
-    return;
-  }
+  if (!query) return;
 
   Object.entries(query).forEach(([key, value]) => {
-    if (value === undefined || value === null) {
-      return;
-    }
+    if (value === undefined || value === null) return;
     url.searchParams.append(key, String(value));
   });
 }
 
-async function exchangeToken(body: Record<string, unknown>): Promise<SFToken> {
+function cacheToken(payload: ServiceFusionTokenResponse): SFToken {
+  cachedToken = {
+    accessToken: payload.access_token,
+    refreshToken: payload.refresh_token ?? null,
+    expiresAt: computeExpiresAt(payload.expires_in)
+  };
+  return cachedToken;
+}
+
+async function exchangeToken(body: Record<string, string>): Promise<SFToken> {
   const response = await fetch(TOKEN_URL, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
       Accept: 'application/json'
     },
     cache: 'no-store',
-    body: JSON.stringify(body)
+    body: new URLSearchParams(body)
   });
 
   if (!response.ok) {
-    throw new Error(`Service Fusion token request failed (${response.status})`);
+    const details = await response.text();
+    throw new Error(`Service Fusion token request failed (${response.status}): ${details}`);
   }
 
   const payload = (await response.json()) as ServiceFusionTokenResponse;
-  const expiresAt = computeExpiryTimestamp(payload.expires_in);
-
-  return {
-    accessToken: payload.access_token,
-    refreshToken: payload.refresh_token ?? '',
-    expiresAt
-  };
+  return cacheToken(payload);
 }
 
 async function requestNewToken(): Promise<SFToken> {
-  const { clientId, clientSecret } = getServiceFusionConfig();
+  const clientId = requireEnv('SF_CLIENT_ID');
+  const clientSecret = requireEnv('SF_CLIENT_SECRET');
+
   return exchangeToken({
     grant_type: 'client_credentials',
     client_id: clientId,
@@ -81,8 +96,8 @@ export function getCachedSFToken(): SFToken | null {
 }
 
 export async function getSFToken(): Promise<string> {
-  if (!cachedToken || isExpired(cachedToken.expiresAt)) {
-    await refreshSFToken();
+  if (!cachedToken || cachedToken.expiresAt <= Date.now()) {
+    await refreshSFToken(cachedToken?.refreshToken);
   }
 
   if (!cachedToken) {
@@ -92,32 +107,36 @@ export async function getSFToken(): Promise<string> {
   return cachedToken.accessToken;
 }
 
-export async function refreshSFToken(): Promise<string> {
+export async function refreshSFToken(currentRefreshToken?: string | null): Promise<string> {
   try {
-    if (cachedToken?.refreshToken) {
-      cachedToken = await requestRefreshToken(cachedToken.refreshToken);
+    const refreshToken = currentRefreshToken ?? cachedToken?.refreshToken;
+    if (refreshToken) {
+      cachedToken = await requestRefreshToken(refreshToken);
       return cachedToken.accessToken;
     }
   } catch (error) {
-    console.warn('Service Fusion refresh token failed, falling back to new token', error);
+    console.warn('Service Fusion refresh failed, falling back to client credentials', error);
   }
 
   cachedToken = await requestNewToken();
   return cachedToken.accessToken;
 }
 
-export async function sfFetch<T>(path: string, options: SFRequestOptions = {}): Promise<T> {
+export async function sfFetch<T>(
+  path: string,
+  options: SFRequestOptions = {}
+): Promise<T> {
   const { query, json, ...rest } = options;
-  const url = new URL(path.startsWith('http') ? path : `${getApiBase()}/${path.replace(/^\/+/, '')}`);
+  const url = new URL(
+    path.startsWith('http') ? path : `${getApiBase()}/${path.replace(/^\/+/, '')}`
+  );
   appendQueryParams(url, query);
-  const accessToken = await getSFToken();
 
   const headers = new Headers(rest.headers);
-  headers.set('Authorization', `Bearer ${accessToken}`);
+  headers.set('Authorization', `Bearer ${await getSFToken()}`);
   headers.set('Accept', headers.get('Accept') ?? 'application/json');
 
   let body = rest.body;
-
   if (json !== undefined) {
     body = JSON.stringify(json);
     if (!headers.has('Content-Type')) {
@@ -139,8 +158,7 @@ export async function sfFetch<T>(path: string, options: SFRequestOptions = {}): 
     );
   }
 
-  const parsed = await parseSuccessPayload(response);
-  return parsed as T;
+  return (await parseSuccessPayload(response)) as T;
 }
 
 async function parseErrorPayload(response: Response): Promise<string> {
@@ -150,7 +168,7 @@ async function parseErrorPayload(response: Response): Promise<string> {
       const json = await response.json();
       return JSON.stringify(json);
     } catch {
-      // fall through
+      // fall through to text
     }
   }
 
@@ -158,9 +176,15 @@ async function parseErrorPayload(response: Response): Promise<string> {
 }
 
 async function parseSuccessPayload(response: Response): Promise<unknown> {
+  if (response.status === 204) {
+    return null;
+  }
+
   const contentType = response.headers.get('content-type') ?? '';
   if (contentType.includes('application/json')) {
     return response.json();
   }
-  return response.text();
+
+  const text = await response.text();
+  return text.length > 0 ? text : null;
 }

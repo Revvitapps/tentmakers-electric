@@ -1,20 +1,5 @@
-import { z } from 'zod';
+import type { BookRequest } from './sfTypes';
 import { isIsoDate, isIsoDateOnly } from './timeUtils';
-
-const sfEnvSchema = z.object({
-  SF_CLIENT_ID: z.string().min(1, 'SF_CLIENT_ID is required'),
-  SF_CLIENT_SECRET: z.string().min(1, 'SF_CLIENT_SECRET is required'),
-  SF_API_BASE: z
-    .string()
-    .url('SF_API_BASE must be a valid URL')
-    .optional()
-});
-
-const thumbtackEnvSchema = z.object({
-  THUMBTACK_CLIENT_ID: z.string().min(1, 'THUMBTACK_CLIENT_ID is required'),
-  THUMBTACK_CLIENT_SECRET: z.string().min(1, 'THUMBTACK_CLIENT_SECRET is required'),
-  THUMBTACK_WEBHOOK_SECRET: z.string().min(1, 'THUMBTACK_WEBHOOK_SECRET is required')
-});
 
 export class ValidationError extends Error {
   constructor(message: string) {
@@ -23,90 +8,126 @@ export class ValidationError extends Error {
   }
 }
 
-export function assertString(value: unknown, fieldName: string): string {
+export function assertString(value: unknown, field: string): string {
   if (typeof value !== 'string' || value.trim().length === 0) {
-    throw new ValidationError(`${fieldName} is required`);
+    throw new ValidationError(`${field} is required`);
   }
-  return value;
+  return value.trim();
 }
 
-export function assertISODate(value: unknown, fieldName: string): string {
+export function assertISODate(value: unknown, field: string): string {
   if (typeof value !== 'string' || !isIsoDate(value)) {
-    throw new ValidationError(`${fieldName} must be an ISO-8601 datetime string`);
+    throw new ValidationError(`${field} must be an ISO-8601 datetime string`);
   }
   return value;
 }
 
-const isoDateTimeSchema = z
-  .string()
-  .refine((value) => isIsoDate(value), { message: 'Must be an ISO-8601 datetime string' });
+export function assertISODateOnly(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !isIsoDateOnly(value)) {
+    throw new ValidationError(`${field} must be a YYYY-MM-DD date string`);
+  }
+  return value;
+}
 
-const isoDateSchema = z
-  .string()
-  .refine((value) => isIsoDateOnly(value), {
-    message: 'Must be a YYYY-MM-DD date string'
-  });
+export function validateAvailabilityQuery(input: {
+  date?: unknown;
+  durationMinutes?: unknown;
+}): { date: string; durationMinutes: number } {
+  const date = assertISODateOnly(input.date, 'date');
 
-const customerSchema = z.object({
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
-  addressLine1: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  postalCode: z.string().optional()
-});
+  const durationRaw = input.durationMinutes;
+  const duration =
+    durationRaw === undefined || durationRaw === null ? 120 : Number(durationRaw);
 
-const serviceSchema = z.object({
-  type: z.string().min(1),
-  notes: z.string().optional(),
-  estimatedPrice: z.number().optional(),
-  options: z.record(z.any()).optional()
-});
+  if (!Number.isFinite(duration) || duration <= 0) {
+    throw new ValidationError('durationMinutes must be a positive number');
+  }
 
-const scheduleSchema = z
-  .object({
-    start: isoDateTimeSchema,
-    end: isoDateTimeSchema
-  })
-  .refine(
-    (value) => new Date(value.end).getTime() > new Date(value.start).getTime(),
-    'schedule.end must be after schedule.start'
-  );
+  return { date, durationMinutes: duration };
+}
 
-export const availabilityQuerySchema = z.object({
-  date: isoDateSchema,
-  durationMinutes: z.coerce.number().int().positive().optional().default(120),
-  techId: z.string().optional()
-});
+export function validateBookRequest(body: any): BookRequest {
+  if (!body || typeof body !== 'object') {
+    throw new ValidationError('Request body must be an object');
+  }
 
-export const bookRequestSchema = z.object({
-  source: z.string().min(1),
-  customer: customerSchema,
-  service: serviceSchema,
-  schedule: scheduleSchema.nullable().optional()
-});
+  const source = assertString(body.source, 'source');
 
-export const thumbtackWebhookSchema = z.object({
-  event: z.string().optional(),
-  data: z.record(z.any())
-});
+  if (!body.customer || typeof body.customer !== 'object') {
+    throw new ValidationError('customer is required');
+  }
 
-export type AvailabilityQueryInput = z.infer<typeof availabilityQuerySchema>;
-export type BookRequestInput = z.infer<typeof bookRequestSchema>;
-export type ThumbtackWebhookInput = z.infer<typeof thumbtackWebhookSchema>;
+  const customer = {
+    firstName: assertString(body.customer.firstName, 'customer.firstName'),
+    lastName: assertString(body.customer.lastName, 'customer.lastName'),
+    email: typeof body.customer.email === 'string' ? body.customer.email : undefined,
+    phone: typeof body.customer.phone === 'string' ? body.customer.phone : undefined,
+    addressLine1:
+      typeof body.customer.addressLine1 === 'string' ? body.customer.addressLine1 : undefined,
+    city: typeof body.customer.city === 'string' ? body.customer.city : undefined,
+    state: typeof body.customer.state === 'string' ? body.customer.state : undefined,
+    postalCode:
+      typeof body.customer.postalCode === 'string' ? body.customer.postalCode : undefined
+  };
 
-export function getServiceFusionConfig() {
-  const env = sfEnvSchema.parse(process.env);
+  if (!body.service || typeof body.service !== 'object') {
+    throw new ValidationError('service is required');
+  }
+
+  const service = {
+    type: assertString(body.service.type, 'service.type'),
+    notes: typeof body.service.notes === 'string' ? body.service.notes : undefined,
+    estimatedPrice:
+      typeof body.service.estimatedPrice === 'number' ? body.service.estimatedPrice : undefined,
+    options:
+      body.service.options && typeof body.service.options === 'object'
+        ? (body.service.options as Record<string, unknown>)
+        : undefined
+  };
+
+  if (!body.schedule || typeof body.schedule !== 'object') {
+    throw new ValidationError('schedule is required');
+  }
+
+  const scheduleStart = assertISODate(body.schedule.start, 'schedule.start');
+  const scheduleEnd = assertISODate(body.schedule.end, 'schedule.end');
+
+  if (new Date(scheduleEnd).getTime() <= new Date(scheduleStart).getTime()) {
+    throw new ValidationError('schedule.end must be after schedule.start');
+  }
 
   return {
-    clientId: env.SF_CLIENT_ID,
-    clientSecret: env.SF_CLIENT_SECRET,
-    apiBase: env.SF_API_BASE ?? 'https://api.servicefusion.com/v1'
+    source,
+    customer,
+    service,
+    schedule: {
+      start: scheduleStart,
+      end: scheduleEnd
+    }
   };
 }
 
 export function getThumbtackConfig() {
-  return thumbtackEnvSchema.parse(process.env);
+  return {
+    THUMBTACK_CLIENT_ID: assertString(
+      process.env.THUMBTACK_CLIENT_ID,
+      'THUMBTACK_CLIENT_ID'
+    ),
+    THUMBTACK_CLIENT_SECRET: assertString(
+      process.env.THUMBTACK_CLIENT_SECRET,
+      'THUMBTACK_CLIENT_SECRET'
+    ),
+    THUMBTACK_WEBHOOK_SECRET: assertString(
+      process.env.THUMBTACK_WEBHOOK_SECRET,
+      'THUMBTACK_WEBHOOK_SECRET'
+    ),
+    THUMBTACK_REDIRECT_URI:
+      typeof process.env.THUMBTACK_REDIRECT_URI === 'string'
+        ? process.env.THUMBTACK_REDIRECT_URI
+        : undefined,
+    THUMBTACK_REDIRECT_URI_STAGING:
+      typeof process.env.THUMBTACK_REDIRECT_URI_STAGING === 'string'
+        ? process.env.THUMBTACK_REDIRECT_URI_STAGING
+        : undefined
+  };
 }

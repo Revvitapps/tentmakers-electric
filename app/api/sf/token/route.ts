@@ -2,15 +2,9 @@ import { NextResponse } from 'next/server';
 import { getCachedSFToken, getSFToken } from '@/lib/sfClient';
 
 const maskToken = (token: string) => {
-  if (!token) {
-    return token;
-  }
-
-  if (token.length <= 8) {
-    return token;
-  }
-
-  return `${token.slice(0, 8)}…`;
+  if (!token) return token;
+  if (token.length <= 6) return `${token.slice(0, 2)}****`;
+  return `${token.slice(0, 8)}****`;
 };
 
 export async function GET() {
@@ -19,9 +13,8 @@ export async function GET() {
     const cached = getCachedSFToken();
 
     return NextResponse.json({
-      accessToken: maskToken(accessToken),
-      expiresAt: cached?.expiresAt ?? null,
-      hasRefreshToken: Boolean(cached?.refreshToken)
+      accessTokenPreview: maskToken(accessToken),
+      expiresAt: cached?.expiresAt ?? null
     });
   } catch (error) {
     return NextResponse.json(

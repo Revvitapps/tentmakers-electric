@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ZodError } from 'zod';
 import { runBookingPipeline } from '@/lib/sfBooking';
 import type { BookRequest, ThumbtackWebhookEnvelope } from '@/lib/sfTypes';
 import {
@@ -8,24 +7,25 @@ import {
   verifyThumbtackSignature
 } from '@/lib/thumbtackClient';
 import { isIsoDate } from '@/lib/timeUtils';
-import { bookRequestSchema } from '@/lib/validation';
+import { ValidationError, validateBookRequest } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   console.log('Thumbtack webhook payload:', rawBody);
-  const signature = getThumbtackSignature(request.headers);
-
-  // TODO: Confirm which Thumbtack header is authoritative for signature validation.
-  if (!verifyThumbtackSignature(rawBody, signature)) {
-    return NextResponse.json({ error: 'Invalid Thumbtack signature' }, { status: 401 });
-  }
 
   try {
+    const signature = getThumbtackSignature(request.headers);
+
+    // TODO: Confirm which Thumbtack header is authoritative for signature validation.
+    if (!verifyThumbtackSignature(rawBody, signature)) {
+      return NextResponse.json({ error: 'Invalid Thumbtack signature' }, { status: 401 });
+    }
+
     const body = JSON.parse(rawBody);
     const parsedEnvelope = parseThumbtackWebhook(body);
 
     const mappedRequest = mapThumbtackToBookRequest(parsedEnvelope);
-    const bookRequest = bookRequestSchema.parse(mappedRequest);
+    const bookRequest = validateBookRequest(mappedRequest);
     const bookingResult = await runBookingPipeline(bookRequest);
 
     return NextResponse.json({
@@ -34,8 +34,15 @@ export async function POST(request: NextRequest) {
       booking: bookingResult
     });
   } catch (error) {
-    if (error instanceof ZodError) {
-      return NextResponse.json({ error: 'Invalid Thumbtack payload structure', details: error.message }, { status: 400 });
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+    }
+
+    if (error instanceof ValidationError) {
+      return NextResponse.json(
+        { error: 'Invalid Thumbtack payload structure', details: error.message },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json(
@@ -55,7 +62,15 @@ function mapThumbtackToBookRequest(envelope: ThumbtackWebhookEnvelope): BookRequ
     getString(contact, 'name') ?? getString(lead, 'customerName') ?? getString(lead, 'name') ?? 'Thumbtack Lead';
   const { firstName, lastName } = splitName(fullName);
 
-  const schedule = deriveSchedule(lead);
+  const scheduleInfo = deriveSchedule(lead);
+  const baseNotes =
+    getString(lead, 'description') ??
+    getString(lead, 'details') ??
+    getString(lead, 'message') ??
+    'Thumbtack lead';
+  const notes = scheduleInfo.isPlaceholder
+    ? `${baseNotes} (requested time pending; placeholder set)`
+    : baseNotes;
 
   return {
     source: 'thumbtack',
@@ -71,17 +86,14 @@ function mapThumbtackToBookRequest(envelope: ThumbtackWebhookEnvelope): BookRequ
     },
     service: {
       type: getString(lead, 'jobType') ?? getString(lead, 'category') ?? 'thumbtack-lead',
-      notes:
-        getString(lead, 'description') ??
-        getString(lead, 'details') ??
-        getString(lead, 'message') ??
-        'Thumbtack lead',
+      notes,
       options: {
         thumbtackLeadId: lead.id ?? contact.id,
+        scheduleIsPlaceholder: scheduleInfo.isPlaceholder,
         raw: lead
       }
     },
-    schedule
+    schedule: scheduleInfo.schedule
   };
 }
 
@@ -93,7 +105,9 @@ function splitName(value: string) {
   };
 }
 
-function deriveSchedule(lead: Record<string, unknown>): BookRequest['schedule'] {
+function deriveSchedule(
+  lead: Record<string, unknown>
+): { schedule: BookRequest['schedule']; isPlaceholder: boolean } {
   const start =
     getString(lead, 'requestedStart') ??
     getString(lead, 'start_time') ??
@@ -107,12 +121,27 @@ function deriveSchedule(lead: Record<string, unknown>): BookRequest['schedule'] 
 
   if (start && end && isIsoDate(start) && isIsoDate(end)) {
     return {
-      start: new Date(start).toISOString(),
-      end: new Date(end).toISOString()
+      schedule: {
+        start: new Date(start).toISOString(),
+        end: new Date(end).toISOString()
+      },
+      isPlaceholder: false
     };
   }
 
-  return null;
+  // TODO: refine once we know Thumbtack scheduling model; this placeholder blocks a 2-hour window tomorrow.
+  const fallbackStart = new Date();
+  fallbackStart.setDate(fallbackStart.getDate() + 1);
+  fallbackStart.setHours(9, 0, 0, 0);
+  const fallbackEnd = new Date(fallbackStart.getTime() + 2 * 60 * 60 * 1000);
+
+  return {
+    schedule: {
+      start: fallbackStart.toISOString(),
+      end: fallbackEnd.toISOString()
+    },
+    isPlaceholder: true
+  };
 }
 
 function getString(obj: Record<string, unknown>, key: string): string | undefined {

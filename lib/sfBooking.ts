@@ -2,11 +2,11 @@ import { sfFetch } from './sfClient';
 import type {
   BookRequest,
   BookingPipelineResult,
-  CalendarTaskPayload,
-  CustomerPayload,
-  CustomerResponse,
-  EstimatePayload,
-  EstimateResponse
+  CalendarTaskCreatePayload,
+  CustomerCreatePayload,
+  Customer,
+  EstimateCreatePayload,
+  Estimate
 } from './sfTypes';
 
 const CUSTOMERS_ENDPOINT = 'customers';
@@ -20,12 +20,9 @@ export async function runBookingPipeline(payload: BookRequest): Promise<BookingP
   // TODO: Add /jobs creation once the exact fields are confirmed with Service Fusion.
   const jobId: string | number | null = null;
 
-  const calendarTaskId = await createCalendarTask(payload, customerId, estimateId);
+  const calendarTaskId = await createCalendarTask(payload, customerId, estimateId, jobId);
 
-  const hasSchedule = Boolean(payload.schedule);
-  const message = hasSchedule
-    ? 'Booking created in Service Fusion'
-    : 'Booking created without a scheduled time (follow-up required)';
+  const message = 'Booking created in Service Fusion';
 
   return {
     status: 'ok',
@@ -38,7 +35,7 @@ export async function runBookingPipeline(payload: BookRequest): Promise<BookingP
 }
 
 async function createCustomer(payload: BookRequest): Promise<string | number> {
-  const customerPayload: CustomerPayload = {
+  const customerPayload: CustomerCreatePayload = {
     first_name: payload.customer.firstName,
     last_name: payload.customer.lastName,
     email: payload.customer.email,
@@ -52,12 +49,14 @@ async function createCustomer(payload: BookRequest): Promise<string | number> {
     notes: `Lead source: ${payload.source}`
   };
 
-  const response = await sfFetch<CustomerResponse>(CUSTOMERS_ENDPOINT, {
+  // TODO: search by email/phone to avoid duplicate customers before creating a new record.
+
+  const response = await sfFetch<Customer>(CUSTOMERS_ENDPOINT, {
     method: 'POST',
     json: customerPayload
   });
 
-  const id = extractIdentifier(response, ['id', 'customer_id', 'customers_id']);
+  const id = extractIdentifier(response as Record<string, unknown>, ['id', 'customer_id', 'customers_id']);
   if (id === null) {
     throw new Error('Customer response did not include an identifier');
   }
@@ -69,7 +68,7 @@ async function createEstimate(
   payload: BookRequest,
   customerId: string | number
 ): Promise<string | number> {
-  const estimatePayload: EstimatePayload = {
+  const estimatePayload: EstimateCreatePayload = {
     customers_id: customerId,
     description: `Estimate for ${payload.service.type}`,
     notes: [
@@ -89,12 +88,12 @@ async function createEstimate(
     }
   };
 
-  const response = await sfFetch<EstimateResponse>(ESTIMATES_ENDPOINT, {
+  const response = await sfFetch<Estimate>(ESTIMATES_ENDPOINT, {
     method: 'POST',
     json: estimatePayload
   });
 
-  const id = extractIdentifier(response, ['id', 'estimate_id', 'estimates_id']);
+  const id = extractIdentifier(response as Record<string, unknown>, ['id', 'estimate_id', 'estimates_id']);
   if (id === null) {
     throw new Error('Estimate response did not include an identifier');
   }
@@ -105,18 +104,16 @@ async function createEstimate(
 async function createCalendarTask(
   payload: BookRequest,
   customerId: string | number,
-  estimateId: string | number
+  estimateId: string | number,
+  jobId: string | number | null
 ): Promise<string | number | null> {
-  if (!payload.schedule) {
-    return null;
-  }
-
-  const calendarPayload: CalendarTaskPayload = {
+  const calendarPayload: CalendarTaskCreatePayload = {
     start_date: payload.schedule.start,
     end_date: payload.schedule.end,
     description: buildCalendarDescription(payload),
     customers_id: customerId,
     estimates_id: estimateId,
+    jobs_id: jobId ?? undefined,
     type: payload.service.type
     // TODO: add technicians/users when Thumbtack provides those preferences.
   };

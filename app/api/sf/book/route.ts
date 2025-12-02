@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ZodError } from 'zod';
-import { bookRequestSchema, ValidationError } from '@/lib/validation';
-import type { BookRequest } from '@/lib/sfTypes';
+import { ValidationError, validateBookRequest } from '@/lib/validation';
 import { runBookingPipeline } from '@/lib/sfBooking';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const payload = bookRequestSchema.parse(body);
+    const payload = validateBookRequest(body);
 
     const result = await runBookingPipeline(payload);
     return NextResponse.json(result);
@@ -16,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
     }
 
-    if (error instanceof ZodError || error instanceof ValidationError) {
+    if (error instanceof ValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
