@@ -183,7 +183,6 @@ function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
     contact_first_name: customer.firstName,
     contact_last_name: customer.lastName,
     street_1: customer.addressLine1 ?? null,
-    street_2: customer.addressLine2 ?? null,
     city: customer.city ?? null,
     state_prov: customer.state ?? null,
     postal_code: customer.postalCode ?? null,
