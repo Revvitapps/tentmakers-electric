@@ -58,6 +58,11 @@ export interface Customer {
   [key: string]: unknown; // see SF docs for full schema
 }
 
+export type CustomerPhone = {
+  phone: string;
+  class?: string;
+};
+
 export interface CustomerCreatePayload {
   customer_name: string;
   contacts?: Array<{
@@ -67,12 +72,7 @@ export interface CustomerCreatePayload {
     suffix?: string;
     contact_type?: string;
     is_primary?: boolean;
-    phones?: Array<{
-      phone: string;
-      ext?: number | string;
-      type?: string;
-      is_mobile?: boolean;
-    }>;
+    phones?: CustomerPhone[];
     emails?: Array<{
       email: string;
       class?: string;
@@ -103,16 +103,15 @@ export interface Estimate {
   id: number | string;
   estimate_id?: number | string;
   description?: string;
-  customers_id?: number;
+  customer_id?: number | string;
   [key: string]: unknown;
 }
 
 export interface EstimateCreatePayload {
-  customers_id: number | string;
+  customer_id: number | string;
   description?: string;
   notes?: string;
   source?: string;
-  metadata?: Record<string, unknown>;
   [key: string]: unknown;
 }
 

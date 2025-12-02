@@ -47,7 +47,7 @@ async function createCustomer(payload: BookRequest): Promise<string | number> {
         ? [
             {
               phone: payload.customer.phone,
-              type: 'Mobile'
+              class: 'Mobile'
             }
           ]
         : undefined,
@@ -106,7 +106,7 @@ async function createEstimate(
   customerId: string | number
 ): Promise<string | number> {
   const estimatePayload: EstimateCreatePayload = {
-    customers_id: customerId,
+    customer_id: customerId,
     description: `Estimate for ${payload.service.type}`,
     notes: [
       payload.service.notes,
@@ -117,12 +117,8 @@ async function createEstimate(
     ]
       .filter(Boolean)
       .join('\n'),
-    source: payload.source,
-    metadata: {
-      options: payload.service.options ?? {},
-      // TODO: align metadata with SF custom fields once available.
-      origin: payload.source
-    }
+    source: mapReferralSource(payload.source)
+    // TODO: align metadata with SF custom fields once available.
   };
 
   const response = await sfFetch<Estimate>(ESTIMATES_ENDPOINT, {
