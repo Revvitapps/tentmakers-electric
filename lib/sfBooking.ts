@@ -105,7 +105,7 @@ async function createEstimate(
   customerId: string | number
 ): Promise<string | number> {
   const estimatePayload: EstimateCreatePayload = {
-    customer_id: customerId,
+    customers_id: customerId,
     description: `Estimate for ${payload.service.type}`,
     notes: [
       payload.service.notes,
@@ -115,8 +115,7 @@ async function createEstimate(
         : undefined
     ]
       .filter(Boolean)
-      .join('\n'),
-    source: mapReferralSource(payload.source)
+      .join('\n')
     // TODO: align metadata with SF custom fields once available.
   };
 
