@@ -98,19 +98,34 @@ export interface CustomerCreatePayload {
   [key: string]: unknown;
 }
 
-export interface Estimate {
-  id: number | string;
-  estimate_id?: number | string;
-  description?: string;
-  customer_id?: number | string;
-  [key: string]: unknown;
+// Minimal SF estimate create payload, matching SF docs
+export interface EstimateCreatePayload {
+  description: string;
+  tech_notes?: string;
+  duration?: number;
+  time_frame_promised_start?: string; // "HH:MM"
+  time_frame_promised_end?: string; // "HH:MM"
+  start_date: string; // "YYYY-MM-DD"
+  customer_name: string; // "First Last"
+  status?: string;
+  contact_first_name?: string;
+  contact_last_name?: string;
+  street_1?: string | null;
+  street_2?: string | null;
+  city?: string | null;
+  state_prov?: string | null;
+  postal_code?: string | null;
+  location_name?: string | null;
+  is_gated?: boolean;
+  gate_instructions?: string | null;
+  category?: string | null;
+  source?: string | null; // must be one of: Website, Thumbtack, Google, etc.
+  note_to_customer?: string | null;
 }
 
-export interface EstimateCreatePayload {
-  customer_id: number | string;
-  description?: string;
-  notes?: string;
-  [key: string]: unknown;
+// Simple response type – SF returns an id
+export interface EstimateCreateResponse {
+  id: number | string;
 }
 
 export interface ScheduleWindow {

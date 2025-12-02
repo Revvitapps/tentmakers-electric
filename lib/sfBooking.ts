@@ -6,7 +6,7 @@ import type {
   CustomerCreatePayload,
   Customer,
   EstimateCreatePayload,
-  Estimate
+  EstimateCreateResponse
 } from './sfTypes';
 
 const CUSTOMERS_ENDPOINT = 'customers';
@@ -104,27 +104,14 @@ async function createEstimate(
   payload: BookRequest,
   customerId: string | number
 ): Promise<string | number> {
-  const estimatePayload: EstimateCreatePayload = {
-    customer_id: customerId,
-    description: `Estimate for ${payload.service.type}`,
-    notes: [
-      payload.service.notes,
-      `Source: ${payload.source}`,
-      payload.service.estimatedPrice
-        ? `Estimated price: $${payload.service.estimatedPrice}`
-        : undefined
-    ]
-      .filter(Boolean)
-      .join('\n')
-    // TODO: align metadata with SF custom fields once available.
-  };
+  const estimatePayload = buildEstimatePayload(payload);
 
-  const response = await sfFetch<Estimate>(ESTIMATES_ENDPOINT, {
+  const response = await sfFetch<EstimateCreateResponse>(ESTIMATES_ENDPOINT, {
     method: 'POST',
     json: estimatePayload
   });
 
-  const id = extractIdentifier(response as Record<string, unknown>, ['id', 'estimate_id', 'estimates_id']);
+  const id = extractIdentifier(response as Record<string, unknown>, ['id']);
   if (id === null) {
     throw new Error('Estimate response did not include an identifier');
   }
@@ -165,6 +152,46 @@ function buildCalendarDescription(payload: BookRequest) {
   ].filter(Boolean);
 
   return lines.join(' - ');
+}
+
+function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
+  const { customer, service, schedule, source } = req;
+  const startIso = schedule.start;
+  const endIso = schedule.end;
+
+  const startDate = startIso.slice(0, 10); // YYYY-MM-DD
+  const startTime = startIso.slice(11, 16); // HH:MM
+  const endTime = endIso.slice(11, 16); // HH:MM
+
+  const durationSeconds = Math.max(
+    0,
+    Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 1000)
+  );
+
+  const fullName = `${customer.firstName} ${customer.lastName}`.trim().slice(0, 44);
+  const sfSource = mapReferralSource(source);
+
+  return {
+    description: service?.type ? `Estimate – ${service.type}` : 'Estimate – Online request',
+    tech_notes: service?.notes ?? undefined,
+    duration: durationSeconds || undefined,
+    time_frame_promised_start: startTime,
+    time_frame_promised_end: endTime,
+    start_date: startDate,
+    customer_name: fullName,
+    status: 'New',
+    contact_first_name: customer.firstName,
+    contact_last_name: customer.lastName,
+    street_1: customer.addressLine1 ?? null,
+    street_2: customer.addressLine2 ?? null,
+    city: customer.city ?? null,
+    state_prov: customer.state ?? null,
+    postal_code: customer.postalCode ?? null,
+    location_name: 'Primary',
+    is_gated: false,
+    source: sfSource ?? null,
+    note_to_customer: service?.notes ?? null
+  };
 }
 
 function mapReferralSource(source: string): string | undefined {
