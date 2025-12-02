@@ -105,7 +105,7 @@ async function createEstimate(
   customerId: string | number
 ): Promise<string | number> {
   const estimatePayload: EstimateCreatePayload = {
-    customers_id: Array.isArray(customerId) ? customerId : [customerId],
+    customer_id: customerId,
     description: `Estimate for ${payload.service.type}`,
     notes: [
       payload.service.notes,
