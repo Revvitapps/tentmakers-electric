@@ -105,6 +105,7 @@ async function createEstimate(
   customerId: string | number
 ): Promise<string | number> {
   const estimatePayload = buildEstimatePayload(payload);
+  console.log('SF estimate payload:', JSON.stringify(estimatePayload, null, 2));
 
   const response = await sfFetch<EstimateCreateResponse>(ESTIMATES_ENDPOINT, {
     method: 'POST',
@@ -159,8 +160,8 @@ function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
   const startIso = schedule.start;
   const endIso = schedule.end;
 
-  const startDate = toSfDate(startIso); // YYYY-MM-DD
-  const endDate = toSfDate(endIso); // YYYY-MM-DD
+  const startDate = toSfDateFromIso(startIso); // YYYY-MM-DD
+  const endDate = toSfDateFromIso(endIso ?? startIso); // YYYY-MM-DD
   const startTime = startIso.slice(11, 16); // HH:MM
   const endTime = endIso.slice(11, 16); // HH:MM
 
@@ -193,6 +194,15 @@ function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
     source: sfSource ?? null,
     note_to_customer: service?.notes ?? null
   };
+}
+
+function toSfDateFromIso(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const tIndex = iso.indexOf('T');
+  if (tIndex > 0) {
+    return iso.slice(0, tIndex);
+  }
+  return iso.slice(0, 10);
 }
 
 function toSfDate(iso: string): string {
