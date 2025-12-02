@@ -54,24 +54,48 @@ export interface CalendarTaskCreatePayload {
 export interface Customer {
   id: number | string;
   customer_id?: number | string;
-  first_name?: string;
-  last_name?: string;
-  email?: string;
-  phone?: string;
+  customer_name?: string;
   [key: string]: unknown; // see SF docs for full schema
 }
 
 export interface CustomerCreatePayload {
-  first_name: string;
-  last_name: string;
-  email?: string;
-  phone?: string;
-  address_line_1?: string;
-  city?: string;
-  state?: string;
-  postal_code?: string;
-  source?: string;
-  notes?: string;
+  customer_name: string;
+  contacts?: Array<{
+    fname?: string;
+    lname?: string;
+    prefix?: string;
+    suffix?: string;
+    contact_type?: string;
+    is_primary?: boolean;
+    phones?: Array<{
+      phone: string;
+      ext?: number | string;
+      type?: string;
+      is_mobile?: boolean;
+    }>;
+    emails?: Array<{
+      email: string;
+      class?: string;
+      types_accepted?: string;
+    }>;
+  }>;
+  locations?: Array<{
+    street_1?: string;
+    street_2?: string;
+    city?: string;
+    state_prov?: string;
+    postal_code?: string;
+    country?: string;
+    nickname?: string;
+    is_primary?: boolean;
+    is_bill_to?: boolean;
+    is_gated?: boolean;
+    customer_contact?: string;
+  }>;
+  referral_source?: string;
+  account_number?: string;
+  private_notes?: string;
+  public_notes?: string;
   [key: string]: unknown;
 }
 

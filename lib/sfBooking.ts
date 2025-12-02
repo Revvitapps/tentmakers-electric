@@ -35,18 +35,55 @@ export async function runBookingPipeline(payload: BookRequest): Promise<BookingP
 }
 
 async function createCustomer(payload: BookRequest): Promise<string | number> {
+  const fullName = `${payload.customer.firstName} ${payload.customer.lastName}`.trim();
+
+  const contacts: CustomerCreatePayload['contacts'] = [
+    {
+      fname: payload.customer.firstName,
+      lname: payload.customer.lastName,
+      is_primary: true,
+      phones: payload.customer.phone
+        ? [
+            {
+              phone: payload.customer.phone,
+              type: 'Mobile',
+              is_mobile: true
+            }
+          ]
+        : undefined,
+      emails: payload.customer.email
+        ? [
+            {
+              email: payload.customer.email,
+              class: 'Personal'
+            }
+          ]
+        : undefined
+    }
+  ];
+
+  const locations: CustomerCreatePayload['locations'] =
+    payload.customer.addressLine1 || payload.customer.city || payload.customer.state || payload.customer.postalCode
+      ? [
+          {
+            street_1: payload.customer.addressLine1,
+            city: payload.customer.city,
+            state_prov: payload.customer.state,
+            postal_code: payload.customer.postalCode,
+            country: 'USA',
+            nickname: 'Primary',
+            is_primary: true,
+            is_bill_to: true
+          }
+        ]
+      : undefined;
+
   const customerPayload: CustomerCreatePayload = {
-    first_name: payload.customer.firstName,
-    last_name: payload.customer.lastName,
-    email: payload.customer.email,
-    phone: payload.customer.phone,
-    address_line_1: payload.customer.addressLine1,
-    city: payload.customer.city,
-    state: payload.customer.state,
-    postal_code: payload.customer.postalCode,
-    source: payload.source,
-    // TODO: map to SF fields such as marketing campaigns, customer types, etc.
-    notes: `Lead source: ${payload.source}`
+    customer_name: fullName.slice(0, 44), // SF complains above 45 chars
+    contacts,
+    locations,
+    referral_source: payload.source,
+    private_notes: `Lead source: ${payload.source}`
   };
 
   // TODO: search by email/phone to avoid duplicate customers before creating a new record.
