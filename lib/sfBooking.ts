@@ -105,7 +105,7 @@ async function createEstimate(
   customerId: string | number
 ): Promise<string | number> {
   const estimatePayload: EstimateCreatePayload = {
-    customers_id: customerId,
+    customers_id: Array.isArray(customerId) ? customerId : [customerId],
     description: `Estimate for ${payload.service.type}`,
     notes: [
       payload.service.notes,
@@ -142,9 +142,9 @@ async function createCalendarTask(
     start_date: payload.schedule.start,
     end_date: payload.schedule.end,
     description: buildCalendarDescription(payload),
-    customers_id: customerId,
-    estimates_id: estimateId,
-    jobs_id: jobId ?? undefined,
+    customers_id: [customerId],
+    estimates_id: [estimateId],
+    jobs_id: jobId ? [jobId] : undefined,
     type: payload.service.type
     // TODO: add technicians/users when Thumbtack provides those preferences.
   };

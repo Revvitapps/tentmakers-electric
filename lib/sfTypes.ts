@@ -102,12 +102,12 @@ export interface Estimate {
   id: number | string;
   estimate_id?: number | string;
   description?: string;
-  customers_id?: number | string;
+  customers_id?: number | string | Array<number | string>;
   [key: string]: unknown;
 }
 
 export interface EstimateCreatePayload {
-  customers_id: number | string;
+  customers_id: number | string | Array<number | string>;
   description?: string;
   notes?: string;
   [key: string]: unknown;
