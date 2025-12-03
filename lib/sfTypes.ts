@@ -106,6 +106,7 @@ export interface EstimateCreatePayload {
   time_frame_promised_start?: string; // "HH:MM"
   time_frame_promised_end?: string; // "HH:MM"
   start_date: string; // "YYYY-MM-DD"
+  end_date?: string;
   customer_name: string; // "First Last"
   status?: string;
   contact_first_name?: string;
