@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ValidationError, validateBookRequest } from '@/lib/validation';
-import { runBookingPipeline } from '@/lib/sfBooking';
+import { runBookingPipeline, toSfDateFromIso } from '@/lib/sfBooking';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const payload = validateBookRequest(body);
+
+    const debugDates = request.nextUrl.searchParams.get('debugDates');
+    if (debugDates) {
+      return NextResponse.json({
+        debug: true,
+        rawSchedule: body.schedule,
+        startDate: toSfDateFromIso(body.schedule?.start),
+        endDateCandidate: toSfDateFromIso(body.schedule?.end ?? body.schedule?.start)
+      });
+    }
 
     const result = await runBookingPipeline(payload);
     return NextResponse.json(result);

@@ -161,7 +161,6 @@ function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
   const endIso = schedule.end;
 
   const startDate = toSfDateFromIso(startIso); // YYYY-MM-DD
-  const endDate = toSfDateFromIso(endIso ?? startIso); // YYYY-MM-DD
   const startTime = startIso.slice(11, 16); // HH:MM
   const endTime = endIso.slice(11, 16); // HH:MM
 
@@ -180,7 +179,6 @@ function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
     time_frame_promised_start: startTime,
     time_frame_promised_end: endTime,
     start_date: startDate,
-    end_date: endDate,
     customer_name: fullName,
     status: 'Estimate Requested',
     contact_first_name: customer.firstName,
@@ -196,7 +194,7 @@ function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
   };
 }
 
-function toSfDateFromIso(iso: string | null | undefined): string {
+export function toSfDateFromIso(iso: string | null | undefined): string {
   if (!iso) return '';
   const tIndex = iso.indexOf('T');
   if (tIndex > 0) {
