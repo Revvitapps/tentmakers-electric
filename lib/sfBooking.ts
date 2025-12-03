@@ -133,7 +133,7 @@ async function createCalendarTask(
     customers_id: [customerId],
     estimates_id: [estimateId],
     jobs_id: jobId ? [jobId] : undefined,
-    type: payload.service.type
+    type: 'Misc'
     // TODO: add technicians/users when Thumbtack provides those preferences.
   };
 
