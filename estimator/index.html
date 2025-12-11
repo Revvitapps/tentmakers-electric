@@ -345,8 +345,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error('API error');
-      await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || 'API error');
+      }
       successEl.style.display = 'block';
       formEl.reset();
       calc();
