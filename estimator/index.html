@@ -304,7 +304,12 @@
     const lastName = rest.join(' ') || 'Customer';
 
     const startIso = toIsoWithOffset(document.getElementById('prefDate').value, document.getElementById('prefStart').value);
-    const endIso = startIso || null;
+    let endIso: string | null = null;
+    if (startIso) {
+      const endDate = new Date(startIso);
+      endDate.setHours(endDate.getHours() + 2);
+      endIso = endDate.toISOString();
+    }
 
     const notes = [
       `Room: ${document.getElementById('room').value}`,
@@ -333,10 +338,14 @@
         estimatedPrice: Number(totalEl.textContent.replace(/[^0-9.]/g, '')) || undefined,
         options: photoPayload.length ? { photos: photoPayload } : undefined
       },
-      schedule: {
-        start: startIso || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        end: endIso || new Date(Date.now() + 26 * 60 * 60 * 1000).toISOString()
-      }
+      schedule: (() => {
+        if (startIso) {
+          return { start: startIso, end: endIso! };
+        }
+        const startFallback = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        const endFallback = new Date(startFallback.getTime() + 2 * 60 * 60 * 1000);
+        return { start: startFallback.toISOString(), end: endFallback.toISOString() };
+      })()
     };
 
     try {
