@@ -23,7 +23,11 @@
   .tmx-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   .tmx-grid>*{min-width:0;}
   label{display:block;font-weight:700;margin:8px 0 6px 0;font-size:14px;color:#3B3C3D;}
-  select,input[type="number"],input[type="text"],textarea{width:100%;padding:10px;border:1px solid #D7D7DB;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box;}
+  select,input[type="number"],input[type="text"],input[type="email"],input[type="tel"],input[type="date"],input[type="time"],textarea{
+    width:100%;padding:10px;border:1px solid #D7D7DB;border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box;
+    background:#FFFFFF;box-shadow:inset 0 1px 2px rgba(0,0,0,0.04);transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--brand-orange);box-shadow:0 0 0 2px rgba(247,148,29,0.18);}
   textarea{min-height:70px;resize:vertical;}
   .tmx-help{font-size:12px;color:#7A7B7D;line-height:1.4;margin-top:4px;}
   .tmx-summary{margin-top:20px;background:var(--bg-soft);border:1px solid var(--border);border-radius:12px;padding:16px;}
@@ -207,6 +211,7 @@
   const formEl = document.getElementById('tmxForm');
   const successEl = document.getElementById('tmxSuccess');
   const errorEl = document.getElementById('tmxError');
+  const photosEl = document.getElementById('photos');
 
   function calc(){
     const numLights = Math.max(1, parseInt(lightsEl.value || '4', 10));
@@ -278,6 +283,23 @@
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00${sign}${hoursOffset}:${minsOffset}`;
   }
 
+  function readPhotos(files) {
+    if (!files || !files.length) return Promise.resolve([]);
+    const maxFiles = 3;
+    const slice = Array.from(files).slice(0, maxFiles);
+    return Promise.all(slice.map(file => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        dataUrl: reader.result
+      });
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    })));
+  }
+
   formEl.addEventListener('submit', async (e) => {
     e.preventDefault();
     successEl.style.display = 'none';
@@ -301,6 +323,8 @@
       document.getElementById('notes').value
     ].filter(Boolean).join('\n');
 
+    const photoPayload = await readPhotos(photosEl.files);
+
     const payload = {
       source: 'website-calculator',
       customer: {
@@ -312,7 +336,8 @@
       service: {
         type: 'led-recessed-lighting',
         notes,
-        estimatedPrice: Number(totalEl.textContent.replace(/[^0-9.]/g, '')) || undefined
+        estimatedPrice: Number(totalEl.textContent.replace(/[^0-9.]/g, '')) || undefined,
+        options: photoPayload.length ? { photos: photoPayload } : undefined
       },
       schedule: {
         start: startIso || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
