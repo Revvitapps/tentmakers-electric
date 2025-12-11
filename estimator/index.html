@@ -150,14 +150,8 @@
       <div>
         <label for="prefDate">Preferred date</label>
         <input id="prefDate" name="prefDate" type="date">
-      </div>
-      <div>
-        <label for="prefStart">Preferred start time</label>
+        <label for="prefStart" style="margin-top:8px;">Preferred start time</label>
         <input id="prefStart" name="prefStart" type="time">
-      </div>
-      <div>
-        <label for="prefEnd">Preferred end time</label>
-        <input id="prefEnd" name="prefEnd" type="time">
       </div>
       <div class="tmx-photo-wrap" id="photoWrap" style="grid-column:1 / -1;">
         <label for="photos">Upload a photo of the ceiling area and the wall switch (optional)</label>
@@ -310,7 +304,7 @@
     const lastName = rest.join(' ') || 'Customer';
 
     const startIso = toIsoWithOffset(document.getElementById('prefDate').value, document.getElementById('prefStart').value);
-    const endIso = toIsoWithOffset(document.getElementById('prefDate').value, document.getElementById('prefEnd').value) || startIso;
+    const endIso = startIso || null;
 
     const notes = [
       `Room: ${document.getElementById('room').value}`,
