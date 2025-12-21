@@ -7,10 +7,12 @@ const nextConfig = {
       { host: 'evcharger.tentmakerelectric.com', destination: '/evcharger' },
     ];
 
-    return hostRedirects.flatMap(({ host, destination }) => ([
-      { source: '/', destination, permanent: true, has: [{ type: 'host', value: host }] },
-      { source: '/:path*', destination, permanent: true, has: [{ type: 'host', value: host }] },
-    ]));
+    return hostRedirects.map(({ host, destination }) => ({
+      source: '/',
+      destination,
+      permanent: true,
+      has: [{ type: 'host', value: host }],
+    }));
   },
 };
 
