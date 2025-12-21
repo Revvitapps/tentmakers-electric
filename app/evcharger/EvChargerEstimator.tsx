@@ -583,7 +583,7 @@ export default function EvChargerEstimator() {
           overflow: hidden;
           background:
             linear-gradient(135deg, rgba(3, 7, 14, 0.35), rgba(5, 9, 18, 0.25), rgba(3, 6, 12, 0.35)),
-            url('/ev-charger-install-meta.png') center center / cover no-repeat;
+            url('/ev-charger-install-meta.png') center 65% / 90% auto no-repeat;
           background-attachment: scroll;
           z-index: 0;
         }
