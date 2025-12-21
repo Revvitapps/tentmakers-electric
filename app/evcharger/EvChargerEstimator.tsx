@@ -616,7 +616,7 @@ export default function EvChargerEstimator() {
         }
         .evx-card {
           position: relative;
-          max-width: 1040px;
+          max-width: 940px;
           margin: 22px auto;
           background: transparent;
           border: none;
@@ -647,12 +647,12 @@ export default function EvChargerEstimator() {
           position: relative;
           z-index: 2;
           margin-bottom: 18px;
-          padding: 18px 16px;
+          padding: 16px 14px;
           border-radius: 18px;
           background: rgba(8, 12, 22, 0.58);
           border: 1px solid rgba(255, 255, 255, 0.16);
           box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42);
-          max-width: 960px;
+          max-width: 860px;
           margin-left: auto;
           margin-right: auto;
         }
