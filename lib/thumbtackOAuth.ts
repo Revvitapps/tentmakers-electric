@@ -32,14 +32,16 @@ export async function exchangeThumbtackAuthorizationCode(params: {
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code: params.code,
-    redirect_uri: params.redirectUri,
-    client_id: config.THUMBTACK_CLIENT_ID,
-    client_secret: config.THUMBTACK_CLIENT_SECRET
+    redirect_uri: params.redirectUri
   });
+  const credentials = Buffer.from(
+    `${config.THUMBTACK_CLIENT_ID}:${config.THUMBTACK_CLIENT_SECRET}`
+  ).toString('base64');
 
   const response = await fetch(getTokenUrl(), {
     method: 'POST',
     headers: {
+      Authorization: `Basic ${credentials}`,
       'Content-Type': 'application/x-www-form-urlencoded',
       Accept: 'application/json'
     },
