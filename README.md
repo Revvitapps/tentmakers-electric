@@ -15,7 +15,8 @@ The `/app` directory contains the API routes that connect Wix/Thumbtack to Servi
 | --- | --- |
 | `SF_CLIENT_ID` / `SF_CLIENT_SECRET` | Service Fusion OAuth credentials (Client Credentials flow) |
 | `SF_API_BASE` | Optional override for the Service Fusion API base (`https://api.servicefusion.com/v1` by default) |
-| `THUMBTACK_CLIENT_ID` / `THUMBTACK_CLIENT_SECRET` | Thumbtack OAuth credentials |
+| `THUMBTACK_CLIENT_ID` / `THUMBTACK_CLIENT_SECRET` | Thumbtack OAuth credentials (production) |
+| `THUMBTACK_CLIENT_ID_STAGING` / `THUMBTACK_CLIENT_SECRET_STAGING` | Thumbtack OAuth credentials used for the staging callback |
 | `THUMBTACK_WEBHOOK_SECRET` | Secret used to validate Thumbtack webhooks |
 | `THUMBTACK_REDIRECT_URI` | Production OAuth callback URL (e.g. `https://tentmakers-electric.vercel.app/api/thumbtack/oauth/callback`) |
 | `THUMBTACK_REDIRECT_URI_STAGING` | Staging OAuth callback URL (e.g. `https://tentmakers-electric.vercel.app/api/thumbtack/oauth/callback-staging`) |

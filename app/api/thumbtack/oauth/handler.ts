@@ -34,7 +34,11 @@ export async function handleThumbtackOAuthCallback(
 
   try {
     const redirectUri = getThumbtackRedirectUri(environment);
-    const tokens = await exchangeThumbtackAuthorizationCode({ code, redirectUri });
+    const tokens = await exchangeThumbtackAuthorizationCode({
+      code,
+      redirectUri,
+      environment
+    });
 
     return NextResponse.json({
       status: 'ok',

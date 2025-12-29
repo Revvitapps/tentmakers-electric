@@ -117,6 +117,14 @@ export function getThumbtackConfig() {
       process.env.THUMBTACK_CLIENT_SECRET,
       'THUMBTACK_CLIENT_SECRET'
     ),
+    THUMBTACK_CLIENT_ID_STAGING:
+      typeof process.env.THUMBTACK_CLIENT_ID_STAGING === 'string'
+        ? process.env.THUMBTACK_CLIENT_ID_STAGING
+        : undefined,
+    THUMBTACK_CLIENT_SECRET_STAGING:
+      typeof process.env.THUMBTACK_CLIENT_SECRET_STAGING === 'string'
+        ? process.env.THUMBTACK_CLIENT_SECRET_STAGING
+        : undefined,
     THUMBTACK_WEBHOOK_SECRET:
       typeof process.env.THUMBTACK_WEBHOOK_SECRET === 'string'
         ? process.env.THUMBTACK_WEBHOOK_SECRET
