@@ -21,6 +21,7 @@ The `/app` directory contains the API routes that connect Wix/Thumbtack to Servi
 | `THUMBTACK_REDIRECT_URI` | Production OAuth callback URL (e.g. `https://tentmakers-electric.vercel.app/api/thumbtack/oauth/callback`) |
 | `THUMBTACK_REDIRECT_URI_STAGING` | Staging OAuth callback URL (e.g. `https://tentmakers-electric.vercel.app/api/thumbtack/oauth/callback-staging`) |
 | `THUMBTACK_TOKEN_URL` | Optional override for the Thumbtack OAuth token URL (defaults to `https://auth.thumbtack.com/oauth2/token`) |
+| `THUMBTACK_TOKEN_URL_STAGING` | Optional override for staging token URL (e.g. `https://staging-auth.thumbtack.com/oauth2/token`) |
 | `SENDGRID_API_KEY` | API key for SendGrid (used by the LED estimator notifications) |
 | `EMAIL_FROM` | Verified “from” email address (Single Sender or domain-authenticated) |
 | `EMAIL_TO` | Comma-separated internal recipient emails for estimator notifications |

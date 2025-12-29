@@ -10,7 +10,15 @@ const DEFAULT_REDIRECTS: Record<ThumbtackOAuthEnvironment, string> = {
 
 const DEFAULT_TOKEN_URL = 'https://auth.thumbtack.com/oauth2/token';
 
-function getTokenUrl() {
+function getTokenUrl(environment: ThumbtackOAuthEnvironment) {
+  if (environment === 'staging') {
+    return (
+      process.env.THUMBTACK_TOKEN_URL_STAGING ??
+      process.env.THUMBTACK_TOKEN_URL ??
+      DEFAULT_TOKEN_URL
+    );
+  }
+
   return process.env.THUMBTACK_TOKEN_URL ?? DEFAULT_TOKEN_URL;
 }
 
@@ -59,7 +67,7 @@ export async function exchangeThumbtackAuthorizationCode(params: {
     `${clientId}:${clientSecret}`
   ).toString('base64');
 
-  const response = await fetch(getTokenUrl(), {
+  const response = await fetch(getTokenUrl(params.environment), {
     method: 'POST',
     headers: {
       Authorization: `Basic ${credentials}`,
