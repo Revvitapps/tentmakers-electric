@@ -8,7 +8,7 @@ const DEFAULT_REDIRECTS: Record<ThumbtackOAuthEnvironment, string> = {
   staging: 'https://tentmakers-electric.vercel.app/api/thumbtack/oauth/callback-staging'
 };
 
-const DEFAULT_TOKEN_URL = 'https://api.thumbtack.com/oauth/token';
+const DEFAULT_TOKEN_URL = 'https://auth.thumbtack.com/oauth2/token';
 
 function getTokenUrl() {
   return process.env.THUMBTACK_TOKEN_URL ?? DEFAULT_TOKEN_URL;

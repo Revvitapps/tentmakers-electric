@@ -20,6 +20,10 @@ export function verifyThumbtackSignature(payload: string, signature: string | nu
   }
 
   const { THUMBTACK_WEBHOOK_SECRET } = getThumbtackConfig();
+  if (!THUMBTACK_WEBHOOK_SECRET) {
+    console.warn('THUMBTACK_WEBHOOK_SECRET is missing; rejecting webhook signature.');
+    return false;
+  }
   const normalizedSignature = signature.startsWith('sha256=')
     ? signature.slice(7)
     : signature;

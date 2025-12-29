@@ -14,9 +14,13 @@ End goal: Thumbtack lead/webhook → normalize to `BookRequest` → create **Ser
 4. Add a review to your business (staging flow).
 
 ### 3) OAuth (Staging)
-1. Implement/run OAuth code flow with staging client ID/secret + redirect URI.
-2. Exchange `code` → `access_token` + `refresh_token`; **store** securely.
-3. Verify token via `GET /v4/users/self` (authCode bearer).
+1. Use staging auth server URLs (environment-specific):
+   - Authorize: `https://staging-auth.thumbtack.com/oauth2/auth`
+   - Token: `https://staging-auth.thumbtack.com/oauth2/token`
+   - Required auth params: `response_type=code`, `redirect_uri`, `scope`, `state` (>= 8 chars), `audience=urn:partner-api`
+2. Implement/run OAuth code flow with staging client ID/secret + redirect URI.
+3. Exchange `code` → `access_token` + `refresh_token`; **store** securely.
+4. Verify token via `GET /v4/users/self` (authCode bearer).
 
 ### 4) Register Business Webhook (Staging)
 Use the staging `access_token` and your businessID:

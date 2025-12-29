@@ -117,10 +117,10 @@ export function getThumbtackConfig() {
       process.env.THUMBTACK_CLIENT_SECRET,
       'THUMBTACK_CLIENT_SECRET'
     ),
-    THUMBTACK_WEBHOOK_SECRET: assertString(
-      process.env.THUMBTACK_WEBHOOK_SECRET,
-      'THUMBTACK_WEBHOOK_SECRET'
-    ),
+    THUMBTACK_WEBHOOK_SECRET:
+      typeof process.env.THUMBTACK_WEBHOOK_SECRET === 'string'
+        ? process.env.THUMBTACK_WEBHOOK_SECRET
+        : undefined,
     THUMBTACK_REDIRECT_URI:
       typeof process.env.THUMBTACK_REDIRECT_URI === 'string'
         ? process.env.THUMBTACK_REDIRECT_URI
