@@ -34,6 +34,10 @@ export async function handleThumbtackOAuthCallback(
 
   try {
     const redirectUri = getThumbtackRedirectUri(environment);
+    console.log('[thumbtack-oauth] environment', environment);
+    console.log('[thumbtack-oauth] redirectUri', redirectUri);
+    console.log('[thumbtack-oauth] tokenUrl', process.env.THUMBTACK_TOKEN_URL_STAGING && environment === 'staging' ? process.env.THUMBTACK_TOKEN_URL_STAGING : process.env.THUMBTACK_TOKEN_URL);
+    console.log('[thumbtack-oauth] clientId', environment === 'staging' ? process.env.THUMBTACK_CLIENT_ID_STAGING : process.env.THUMBTACK_CLIENT_ID);
     const tokens = await exchangeThumbtackAuthorizationCode({
       code,
       redirectUri,
