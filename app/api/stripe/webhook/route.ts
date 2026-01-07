@@ -12,7 +12,7 @@ type StoredPayload = {
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const stripe = stripeSecret
-  ? new Stripe(stripeSecret, { apiVersion: '2024-06-20' })
+  ? new Stripe(stripeSecret, { apiVersion: '2025-12-15.clover' })
   : null;
 
 async function fetchPhotoAsDataUrl(ref: { url: string; type?: string }) {

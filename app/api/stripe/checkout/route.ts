@@ -20,7 +20,7 @@ const successUrl = process.env.STRIPE_SUCCESS_URL;
 const cancelUrl = process.env.STRIPE_CANCEL_URL;
 
 const stripe = stripeSecret
-  ? new Stripe(stripeSecret, { apiVersion: '2024-06-20' })
+  ? new Stripe(stripeSecret, { apiVersion: '2025-12-15.clover' })
   : null;
 
 function dataUrlToBuffer(dataUrl: string) {
