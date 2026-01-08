@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     siteName: 'Tentmakers Electric',
     images: [
       {
-        url: '/ev-charger-hero.png',
+        url: '/ev-fullscreen-hero-charlotte-skyline.png',
         width: 1200,
         height: 630,
         alt: 'Tentmakers Electric EV Charger Install'
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Tentmakers Electric | EV Charger Install',
     description: 'Book a clean EV charger install with Tentmakers Electric.',
-    images: ['/ev-charger-hero.png']
+    images: ['/ev-fullscreen-hero-charlotte-skyline.png']
   }
 };
 
