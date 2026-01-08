@@ -36,9 +36,9 @@ export async function runBookingPipeline(payload: BookRequest): Promise<BookingP
 
 export async function captureLead(
   payload: BookRequest,
-  options: { stageLabel?: string; createCalendarTask?: boolean } = {}
+  options: { stageLabel?: string; includeCalendarTask?: boolean } = {}
 ): Promise<BookingPipelineResult> {
-  const { stageLabel, createCalendarTask = false } = options;
+  const { stageLabel, includeCalendarTask = false } = options;
 
   const normalizedPayload: BookRequest = {
     ...payload,
@@ -55,7 +55,7 @@ export async function captureLead(
   const estimateId = await createEstimate(normalizedPayload, customerId);
 
   let calendarTaskId: string | number | null = null;
-  if (createCalendarTask) {
+  if (includeCalendarTask) {
     calendarTaskId = await createCalendarTask(normalizedPayload, customerId, estimateId, null);
   }
 

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
           }
         }
       },
-      { stageLabel: stage, createCalendarTask: false }
+      { stageLabel: stage, includeCalendarTask: false }
     );
 
     return NextResponse.json({ status: 'ok', stage, result }, { headers: corsHeaders });
