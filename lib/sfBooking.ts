@@ -34,6 +34,41 @@ export async function runBookingPipeline(payload: BookRequest): Promise<BookingP
   };
 }
 
+export async function captureLead(
+  payload: BookRequest,
+  options: { stageLabel?: string; createCalendarTask?: boolean } = {}
+): Promise<BookingPipelineResult> {
+  const { stageLabel, createCalendarTask = false } = options;
+
+  const normalizedPayload: BookRequest = {
+    ...payload,
+    service: {
+      ...payload.service,
+      options: {
+        ...payload.service.options,
+        estimateStatus: stageLabel ?? (payload.service.options as Record<string, unknown>)?.estimateStatus
+      }
+    }
+  };
+
+  const customerId = await createCustomer(normalizedPayload);
+  const estimateId = await createEstimate(normalizedPayload, customerId);
+
+  let calendarTaskId: string | number | null = null;
+  if (createCalendarTask) {
+    calendarTaskId = await createCalendarTask(normalizedPayload, customerId, estimateId, null);
+  }
+
+  return {
+    status: 'ok',
+    customerId,
+    estimateId,
+    jobId: null,
+    calendarTaskId,
+    message: stageLabel ? `Lead captured (${stageLabel})` : 'Lead captured'
+  };
+}
+
 async function createCustomer(payload: BookRequest): Promise<string | number> {
   const fullName = `${payload.customer.firstName} ${payload.customer.lastName}`.trim();
   const referralSource = mapReferralSource(payload.source);

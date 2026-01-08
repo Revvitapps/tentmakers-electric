@@ -1,7 +1,7 @@
 'use client';
 
 import { Space_Grotesk } from 'next/font/google';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 
 const spaceGrotesk = Space_Grotesk({
@@ -72,6 +72,9 @@ export default function EvChargerEstimator() {
   const [step, setStep] = useState(1);
   const totalSteps = 4;
   const [depositChoice, setDepositChoice] = useState<'deposit' | 'questions'>('questions');
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const sessionId = useMemo(() => crypto.randomUUID(), []);
+  const progressStagesSent = useRef<Record<string, boolean>>({});
 
   const estimate = useMemo(() => {
     const runOption = RUN_OPTIONS[run];
@@ -119,6 +122,140 @@ export default function EvChargerEstimator() {
     setPhotos(Array.from(e.target.files ?? []));
   };
 
+  async function buildPayload(options?: {
+    includePhotos?: boolean;
+    stageLabel?: string;
+  }) {
+    const formEl = formRef.current;
+    if (!formEl) return null;
+
+    const formData = new FormData(formEl);
+    const fullName = String(formData.get('custName') ?? '').trim();
+    const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
+    const lastName = rest.join(' ') || 'Customer';
+    const email = String(formData.get('custEmail') ?? '').trim();
+    const phone = String(formData.get('custPhone') ?? '').trim();
+
+    if (!firstName && !lastName && !email && !phone) {
+      return null;
+    }
+
+    const chargerHardware = String(formData.get('chargerBrand') ?? '');
+    const ampsValue = String(formData.get('amps') ?? '');
+
+    const startIso = toIsoWithOffset(
+      String(formData.get('prefDate') ?? '') || undefined,
+      String(formData.get('prefStart') ?? '') || undefined
+    );
+
+    let scheduleStart = startIso;
+    let scheduleEnd: string | null = null;
+    if (startIso) {
+      const endDate = new Date(startIso);
+      endDate.setHours(endDate.getHours() + 2);
+      scheduleEnd = endDate.toISOString();
+    } else {
+      const startFallback = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const endFallback = new Date(startFallback.getTime() + 2 * 60 * 60 * 1000);
+      scheduleStart = startFallback.toISOString();
+      scheduleEnd = endFallback.toISOString();
+    }
+
+    const notes = [
+      `Run: ${RUN_OPTIONS[run].label}`,
+      `Panel location: ${
+        panelLoc === 'inside'
+          ? 'Inside the garage'
+          : panelLoc === 'outside'
+            ? 'Outside the garage'
+            : 'Interior (not in garage)'
+      }`,
+      `Charger hardware: ${chargerHardware || 'Unspecified'}`,
+      `Desired amperage: ${ampsValue || 'Not sure'}`,
+      `Permit included: ${permit ? 'Yes' : 'No'}`,
+      outsideOutlet ? 'Outside outlet requested' : null,
+      formData.get('notes'),
+      options?.stageLabel ? `Lead stage: ${options.stageLabel}` : null
+    ]
+      .filter(Boolean)
+      .map(String)
+      .join('\n');
+
+    let photoPayload: Array<{ name: string; size: number; type: string; dataUrl: string }> = [];
+    if (options?.includePhotos) {
+      const photoFiles =
+        photos.length > 0
+          ? photos
+          : (formData
+              .getAll('photos')
+              .filter((f): f is File => f instanceof File && f.size > 0) as File[]);
+      photoPayload = await readPhotos(photoFiles);
+    }
+
+    const estimateStatus =
+      options?.stageLabel ??
+      (depositChoice === 'deposit' ? 'Deposit Initiated' : 'Estimate Requested');
+
+    return {
+      source: 'website-calculator',
+      marketingSource: 'meta-boosted-ev',
+      customer: {
+        firstName: firstName || 'Customer',
+        lastName,
+        email: email || undefined,
+        phone: phone || undefined,
+        addressLine1: (formData.get('address1') as string) || undefined,
+        city: (formData.get('city') as string) || undefined,
+        state: (formData.get('state') as string) || undefined,
+        postalCode: (formData.get('postalCode') as string) || undefined
+      },
+      service: {
+        type: 'ev-charger-install',
+        notes,
+        estimatedPrice: estimate.estimatedPrice,
+        options: {
+          run,
+          panelLocation: panelLoc,
+          permit,
+          outsideOutlet: outsideOutlet || undefined,
+          chargerHardware: chargerHardware || undefined,
+          amps: ampsValue || undefined,
+          photos: photoPayload.length ? photoPayload : undefined,
+          estimateStatus,
+          paymentPreference: depositChoice,
+          depositAmount: depositChoice === 'deposit' ? 100 : undefined,
+          sessionId
+        }
+      },
+      schedule: {
+        start: scheduleStart!,
+        end: scheduleEnd!
+      }
+    };
+  }
+
+  async function sendLeadProgress(stageLabel: string) {
+    if (progressStagesSent.current[stageLabel]) return;
+    const payload = await buildPayload({ includePhotos: false, stageLabel });
+    if (!payload) return;
+    progressStagesSent.current[stageLabel] = true;
+    try {
+      await fetch('/api/sf/lead-progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, stage: stageLabel })
+      });
+    } catch (err) {
+      console.error('Failed to capture lead progress', err);
+    }
+  }
+
+  useEffect(() => {
+    if (step >= 2) {
+      void sendLeadProgress('EV - Partial Progress (Step 2+)');
+    }
+  }, [step]);
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     if (step < totalSteps) {
       e.preventDefault();
@@ -144,96 +281,18 @@ export default function EvChargerEstimator() {
       fieldEl?.focus();
       return;
     }
-    const fullName = String(formData.get('custName') ?? '').trim();
-    const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
-    const lastName = rest.join(' ') || 'Customer';
-    const chargerHardware = String(formData.get('chargerBrand') ?? '');
-    const ampsValue = String(formData.get('amps') ?? '');
-    const depositPref = depositChoice;
-
-    const startIso = toIsoWithOffset(
-      String(formData.get('prefDate') ?? '') || undefined,
-      String(formData.get('prefStart') ?? '') || undefined
-    );
-    let scheduleStart = startIso;
-    let scheduleEnd: string | null = null;
-    if (startIso) {
-      const endDate = new Date(startIso);
-      endDate.setHours(endDate.getHours() + 2);
-      scheduleEnd = endDate.toISOString();
-    } else {
-      const startFallback = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      const endFallback = new Date(startFallback.getTime() + 2 * 60 * 60 * 1000);
-      scheduleStart = startFallback.toISOString();
-      scheduleEnd = endFallback.toISOString();
+    const payload = await buildPayload({ includePhotos: true });
+    if (!payload) {
+      setSubmitting(false);
+      setSubmitState('error');
+      setSubmitError('Please fill your name, email, and phone to continue.');
+      setStep(1);
+      return;
     }
 
-    const photoFiles =
-      photos.length > 0
-        ? photos
-        : (formData
-            .getAll('photos')
-            .filter((f): f is File => f instanceof File && f.size > 0) as File[]);
-    const photoPayload = await readPhotos(photoFiles);
-
-    const notes = [
-      `Run: ${RUN_OPTIONS[run].label}`,
-      `Panel location: ${
-        panelLoc === 'inside'
-          ? 'Inside the garage'
-          : panelLoc === 'outside'
-            ? 'Outside the garage'
-            : 'Interior (not in garage)'
-      }`,
-      `Charger hardware: ${chargerHardware || 'Unspecified'}`,
-      `Desired amperage: ${ampsValue || 'Not sure'}`,
-      `Permit included: ${permit ? 'Yes' : 'No'}`,
-      outsideOutlet ? 'Outside outlet requested' : null,
-      formData.get('notes')
-    ]
-      .filter(Boolean)
-      .map(String)
-      .join('\n');
-
-    const estimateStatus = depositPref === 'deposit' ? 'Estimate Won' : 'Estimate Requested';
-    const payload = {
-      source: 'website-calculator',
-      marketingSource: 'meta-boosted-ev',
-      customer: {
-        firstName: firstName || 'Customer',
-        lastName,
-        email: (formData.get('custEmail') as string) || undefined,
-        phone: (formData.get('custPhone') as string) || undefined,
-        addressLine1: (formData.get('address1') as string) || undefined,
-        city: (formData.get('city') as string) || undefined,
-        state: (formData.get('state') as string) || undefined,
-        postalCode: (formData.get('postalCode') as string) || undefined
-      },
-      service: {
-        type: 'ev-charger-install',
-        notes,
-        estimatedPrice: estimate.estimatedPrice,
-        options: {
-          run,
-          panelLocation: panelLoc,
-          permit,
-          outsideOutlet: outsideOutlet || undefined,
-          chargerHardware: chargerHardware || undefined,
-          amps: ampsValue || undefined,
-          photos: photoPayload.length ? photoPayload : undefined,
-          estimateStatus,
-          paymentPreference: depositPref,
-          depositAmount: depositPref === 'deposit' ? 100 : undefined
-        }
-      },
-      schedule: {
-        start: scheduleStart!,
-        end: scheduleEnd!
-      }
-    };
-
     try {
-      if (depositPref === 'deposit') {
+      if (depositChoice === 'deposit') {
+        await sendLeadProgress('EV - Deposit Initiated');
         const res = await fetch('/api/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -314,7 +373,7 @@ export default function EvChargerEstimator() {
           </div>
         </header>
 
-        <form className="tmx-form" onSubmit={handleSubmit}>
+        <form className="tmx-form" onSubmit={handleSubmit} ref={formRef}>
           <div className={`tmx-alert error ${submitState === 'error' ? 'show' : ''}`}>
             {submitError ?? 'Something went wrong. Please try again or call us.'}
           </div>
@@ -629,6 +688,7 @@ export default function EvChargerEstimator() {
             linear-gradient(135deg, rgba(3, 7, 14, 0.35), rgba(5, 9, 18, 0.25), rgba(3, 6, 12, 0.35)),
             url('/ev-fullscreen-hero-charlotte-skyline.png') center 14% / cover no-repeat;
           background-attachment: scroll;
+          background-color: #02060f;
           z-index: 0;
         }
         .evx-hero-glow {
@@ -713,6 +773,32 @@ export default function EvChargerEstimator() {
           max-width: 860px;
           margin-left: auto;
           margin-right: auto;
+        }
+        @media (max-width: 720px) {
+          .evx-shell {
+            height: auto;
+            min-height: 100vh;
+            padding: 16px 12px 24px;
+            overflow: auto;
+            background-color: #02060f;
+            background-image:
+              linear-gradient(135deg, rgba(3, 7, 14, 0.25), rgba(5, 9, 18, 0.2), rgba(3, 6, 12, 0.25)),
+              url('/ev-mobile-hero-charlotte-skyline.png');
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-position: center 16%;
+          }
+          .evx-card {
+            max-height: none;
+            margin: 12px auto 16px;
+            overflow: visible;
+          }
+          .evx-head h1 {
+            font-size: 26px;
+          }
+          .evx-corner-logo img {
+            width: 125px;
+          }
         }
         .logo-tile {
           width: fit-content;
@@ -1086,31 +1172,49 @@ export default function EvChargerEstimator() {
         }
         .duke-credit {
           margin-top: 24px;
-          border: 1px solid rgba(124, 255, 179, 0.35);
-          background: rgba(124, 255, 179, 0.06);
+          border: 1px solid rgba(124, 255, 179, 0.5);
+          background: rgba(2, 4, 8, 0.96);
+          box-shadow: 0 22px 52px rgba(0, 0, 0, 0.78), 0 0 0 1px rgba(124, 255, 179, 0.14);
           border-radius: 14px;
           padding: 14px;
+          backdrop-filter: blur(18px);
           opacity: 0;
           animation: introCard 0.8s ease forwards;
           animation-delay: 1.1s;
+          position: relative;
+        }
+        .duke-credit::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, rgba(2, 4, 8, 0.96), rgba(4, 9, 16, 0.96));
+          border-radius: 14px;
+          pointer-events: none;
+        }
+        .duke-credit > * {
+          position: relative;
+          z-index: 1;
         }
         .duke-credit h3 {
           margin: 0 0 6px;
-          font-size: 16px;
-          color: #7cffb3;
+          font-size: 18px;
+          color: #e8fff4;
+          text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
         }
         .duke-credit p {
           margin: 4px 0 10px;
-          color: #eaf3ff;
-          font-size: 13px;
-          line-height: 1.6;
+          color: #ffffff;
+          font-size: 14px;
+          line-height: 1.65;
+          text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
         }
         .duke-credit ul {
           margin: 0 0 8px 16px;
           padding: 0;
-          color: #eaf3ff;
-          font-size: 13px;
-          line-height: 1.5;
+          color: #ffffff;
+          font-size: 14px;
+          line-height: 1.6;
+          text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
         }
         .duke-credit li + li {
           margin-top: 4px;
@@ -1118,6 +1222,20 @@ export default function EvChargerEstimator() {
         .duke-credit a {
           color: #4cf0ff;
           font-weight: 700;
+          text-shadow: 0 1px 6px rgba(0, 0, 0, 0.65);
+        }
+        @media (max-width: 640px) {
+          .duke-credit {
+            padding: 12px;
+          }
+          .duke-credit h3 {
+            font-size: 16px;
+          }
+          .duke-credit p,
+          .duke-credit ul {
+            font-size: 13px;
+            line-height: 1.55;
+          }
         }
         .tmx-legal {
           font-size: 11.5px;
@@ -1148,9 +1266,13 @@ export default function EvChargerEstimator() {
         @media (max-width: 640px) {
           .evx-shell {
             padding: 18px 12px 36px;
-            background:
-              linear-gradient(135deg, rgba(3, 7, 14, 0.45), rgba(5, 9, 18, 0.28), rgba(3, 6, 12, 0.4)),
-              url('/ev-charger-charlotte-skyline-mobile-hero.png') center 14% / cover no-repeat;
+            background-color: #02060f;
+            background-image:
+              linear-gradient(135deg, rgba(3, 7, 14, 0.25), rgba(5, 9, 18, 0.2), rgba(3, 6, 12, 0.25)),
+              url('/ev-mobile-hero-charlotte-skyline.png');
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-position: center 16%;
           }
           .evx-corner-logo {
             top: 12px;
