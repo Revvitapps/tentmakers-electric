@@ -165,3 +165,59 @@ export async function sendBookingEmail(
 
   return 'sent';
 }
+
+export async function sendCustomerReminderEmail(
+  payload: BookRequest,
+  stage: string
+): Promise<'sent' | 'skipped'> {
+  const config = getSendGridConfig();
+  const email = payload.customer.email?.trim();
+  if (!config || !email || !isValidEmail(email)) {
+    console.warn('Reminder email skipped: missing configuration or customer email');
+    return 'skipped';
+  }
+
+  const serviceLabel = getServiceLabel(payload.service.type);
+  const subject =
+    stage.includes('Deposit')
+      ? `Reminder: Finish your ${serviceLabel} deposit`
+      : `Reminder: Complete your ${serviceLabel} estimate request`;
+
+  const lines = [
+    `Hi ${payload.customer.firstName ?? 'there'},`,
+    '',
+    `We noticed you started the ${serviceLabel} estimate and reached the "${stage}" step.`,
+    'To lock in your install slot, please return to the calculator and submit the $100 deposit or reply to this email so we can follow up.',
+    '',
+    'If you prefer, you can also call us at (704) 555-1234 or reply here and we’ll help you finish the booking.',
+    '',
+    '– Tentmakers Electric'
+  ];
+
+  const body = {
+    personalizations: [
+      {
+        to: [{ email }]
+      }
+    ],
+    from: { email: config.from },
+    subject,
+    content: [{ type: 'text/plain', value: lines.join('\n') }]
+  };
+
+  const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => res.statusText);
+    throw new Error(`SendGrid (reminder) failed (${res.status}): ${errText}`);
+  }
+
+  return 'sent';
+}

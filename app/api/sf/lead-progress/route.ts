@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ValidationError, validateBookRequest } from '@/lib/validation';
 import { captureLead } from '@/lib/sfBooking';
+import { sendCustomerReminderEmail } from '@/lib/email';
 
 const allowOrigin = process.env.CORS_ALLOW_ORIGIN || '*';
 const corsHeaders = {
@@ -36,6 +37,14 @@ export async function POST(request: NextRequest) {
       },
       { stageLabel: stage, includeCalendarTask: false }
     );
+
+    if (['EV - Partial Progress (Step 2+)', 'EV - Deposit Initiated'].includes(stage)) {
+      try {
+        await sendCustomerReminderEmail(payload, stage);
+      } catch (emailErr) {
+        console.error('Reminder email failed', emailErr);
+      }
+    }
 
     return NextResponse.json({ status: 'ok', stage, result }, { headers: corsHeaders });
   } catch (error) {
