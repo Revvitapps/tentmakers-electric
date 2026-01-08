@@ -277,8 +277,10 @@ export default function EvChargerEstimator() {
       setSubmitState('error');
       setSubmitError('Please fill your name, email, and phone to continue.');
       setStep(1);
-      const fieldEl = document.getElementById(missingRequired) as HTMLInputElement | null;
-      fieldEl?.focus();
+      setTimeout(() => {
+        const fieldEl = document.getElementById(missingRequired) as HTMLInputElement | null;
+        fieldEl?.focus();
+      }, 0);
       return;
     }
     const payload = await buildPayload({ includePhotos: true });
