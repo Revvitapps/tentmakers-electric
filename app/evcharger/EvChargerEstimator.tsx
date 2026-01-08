@@ -80,7 +80,7 @@ export default function EvChargerEstimator() {
   const [stepValidationErrors, setStepValidationErrors] = useState<Record<number, string[]>>({});
 
   const estimate = useMemo(() => {
-    const activeRun = (run || 'next') as RunKey;
+    const activeRun: RunKey = run ? run : 'next';
     const activePanel = (panelLoc || 'inside') as PanelLoc;
     const runOption = RUN_OPTIONS[activeRun];
     const permitValue = permit ? PERMIT_FEE : 0;
@@ -225,12 +225,14 @@ export default function EvChargerEstimator() {
       scheduleEnd = endFallback.toISOString();
     }
 
+    const activeRun: RunKey = run ? run : 'next';
+    const activePanel = (panelLoc || 'inside') as PanelLoc;
     const notes = [
-      `Run: ${RUN_OPTIONS[run].label}`,
+      `Run: ${RUN_OPTIONS[activeRun].label}`,
       `Panel location: ${
-        panelLoc === 'inside'
+        activePanel === 'inside'
           ? 'Inside the garage'
-          : panelLoc === 'outside'
+          : activePanel === 'outside'
             ? 'Outside the garage'
             : 'Interior (not in garage)'
       }`,
