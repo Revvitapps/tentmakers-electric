@@ -69,6 +69,7 @@ export default function EvChargerEstimator() {
   const [submitState, setSubmitState] = useState<'idle' | 'ok' | 'error'>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [checkoutStarted, setCheckoutStarted] = useState(false);
   const [step, setStep] = useState(1);
   const totalSteps = 4;
   const [depositChoice, setDepositChoice] = useState<'deposit' | 'questions'>('questions');
@@ -303,6 +304,8 @@ export default function EvChargerEstimator() {
 
     try {
       if (depositChoice === 'deposit') {
+        if (checkoutStarted) return;
+        setCheckoutStarted(true);
         await sendLeadProgress('EV - Deposit Initiated');
         const res = await fetch('/api/stripe/checkout', {
           method: 'POST',
@@ -335,6 +338,7 @@ export default function EvChargerEstimator() {
       setOutsideOutlet(false);
       setPhotos([]);
     } catch (err) {
+      setCheckoutStarted(false);
       console.error(err);
       setSubmitState('error');
       setSubmitError('Something went wrong. Please try again or call us.');
@@ -642,7 +646,10 @@ export default function EvChargerEstimator() {
               </button>
             )}
             {step === totalSteps && (
-              <button type="submit" disabled={submitting}>
+            <button
+              type="submit"
+              disabled={submitting || (depositChoice === 'deposit' && checkoutStarted)}
+            >
                 {submitting ? 'Sending…' : 'Send My EV Charger Estimate'}
               </button>
             )}
