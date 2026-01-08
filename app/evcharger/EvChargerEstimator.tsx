@@ -67,6 +67,7 @@ export default function EvChargerEstimator() {
   const [outsideOutlet, setOutsideOutlet] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitState, setSubmitState] = useState<'idle' | 'ok' | 'error'>('idle');
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
   const totalSteps = 4;
@@ -125,6 +126,7 @@ export default function EvChargerEstimator() {
       return;
     }
     e.preventDefault();
+    setSubmitError(null);
     setSubmitState('idle');
     setSubmitting(true);
 
@@ -136,6 +138,7 @@ export default function EvChargerEstimator() {
     if (missingRequired) {
       setSubmitting(false);
       setSubmitState('error');
+      setSubmitError('Please fill your name, email, and phone to continue.');
       setStep(1);
       const fieldEl = document.getElementById(missingRequired) as HTMLInputElement | null;
       fieldEl?.focus();
@@ -263,6 +266,7 @@ export default function EvChargerEstimator() {
     } catch (err) {
       console.error(err);
       setSubmitState('error');
+      setSubmitError('Something went wrong. Please try again or call us.');
     } finally {
       setSubmitting(false);
     }
@@ -305,6 +309,9 @@ export default function EvChargerEstimator() {
         </header>
 
         <form className="tmx-form" onSubmit={handleSubmit}>
+          <div className={`tmx-alert error ${submitState === 'error' ? 'show' : ''}`}>
+            {submitError ?? 'Something went wrong. Please try again or call us.'}
+          </div>
           <div className={`section ${step === 1 ? 'active' : 'hidden-section'}`}>
             <div className="section-head">
               <span className="section-tag">Step 1</span>
@@ -558,9 +565,6 @@ export default function EvChargerEstimator() {
           </div>
           <div className={`tmx-alert success ${submitState === 'ok' ? 'show' : ''}`}>
             Thanks! We received your EV charger request and will reach out shortly.
-          </div>
-          <div className={`tmx-alert error ${submitState === 'error' ? 'show' : ''}`}>
-            Something went wrong. Please try again or call us.
           </div>
 
           <div className="duke-credit">
