@@ -22,6 +22,13 @@ const RUN_OPTIONS: Record<
 };
 
 const PERMIT_FEE = 89;
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+declare global {
+  interface Window {
+    google?: typeof google;
+  }
+}
 
 function toIsoWithOffset(dateStr?: string | null, timeStr?: string | null) {
   if (!dateStr || !timeStr) return null;
@@ -78,6 +85,10 @@ export default function EvChargerEstimator() {
   const progressStagesSent = useRef<Record<string, boolean>>({});
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [stepValidationErrors, setStepValidationErrors] = useState<Record<number, string[]>>({});
+  const addressRef = useRef<HTMLInputElement | null>(null);
+  const cityRef = useRef<HTMLInputElement | null>(null);
+  const stateRef = useRef<HTMLInputElement | null>(null);
+  const postalRef = useRef<HTMLInputElement | null>(null);
 
   const estimate = useMemo(() => {
     const activeRun: RunKey = run ? run : 'next';
@@ -126,6 +137,102 @@ export default function EvChargerEstimator() {
   const handlePhotos = (e: ChangeEvent<HTMLInputElement>) => {
     setPhotos(Array.from(e.target.files ?? []));
   };
+
+  // Google Maps key is static, so load the Places script only once on the client.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!GOOGLE_MAPS_API_KEY || typeof window === 'undefined') {
+      return;
+    }
+
+    let listener: google.maps.MapsEventListener | null = null;
+    const scriptId = 'tmx-google-maps-places';
+
+    const getComponentValue = (place: google.maps.places.PlaceResult, type: string) =>
+      place.address_components?.find((component) => component.types.includes(type))?.long_name;
+
+    const fillAddressFields = (place: google.maps.places.PlaceResult) => {
+      const cityValue =
+        getComponentValue(place, 'locality') ||
+        getComponentValue(place, 'postal_town') ||
+        getComponentValue(place, 'sublocality') ||
+        getComponentValue(place, 'neighborhood');
+      const stateValue = getComponentValue(place, 'administrative_area_level_1');
+      const postalValue = getComponentValue(place, 'postal_code');
+
+      if (cityValue && cityRef.current) {
+        cityRef.current.value = cityValue;
+      }
+      if (stateValue && stateRef.current) {
+        stateRef.current.value = stateValue;
+      }
+      if (postalValue && postalRef.current) {
+        postalRef.current.value = postalValue;
+      }
+    };
+
+    const setupAutocomplete = () => {
+      if (!addressRef.current || !window.google?.maps?.places?.Autocomplete) {
+        return;
+      }
+      const autocomplete = new window.google.maps.places.Autocomplete(addressRef.current, {
+        types: ['address'],
+        componentRestrictions: { country: 'US' }
+      });
+      autocomplete.setFields(['address_component']);
+      listener = autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        fillAddressFields(place);
+      });
+    };
+
+    const ensureScriptLoaded = () =>
+      new Promise<void>((resolve, reject) => {
+        if (window.google?.maps?.places?.Autocomplete) {
+          resolve();
+          return;
+        }
+        const existingScript = document.getElementById(scriptId) as HTMLScriptElement | null;
+        if (existingScript) {
+          existingScript.addEventListener('load', () => resolve(), { once: true });
+          existingScript.addEventListener(
+            'error',
+            () => reject(new Error('Failed to load Google Maps script')),
+            { once: true }
+          );
+          return;
+        }
+        const script = document.createElement('script');
+        script.id = scriptId;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+        script.async = true;
+        script.defer = true;
+        script.addEventListener('load', () => resolve());
+        script.addEventListener(
+          'error',
+          () => reject(new Error('Failed to load Google Maps script')),
+          { once: true }
+        );
+        document.head.appendChild(script);
+      });
+
+    let cancelled = false;
+    (async () => {
+      try {
+        await ensureScriptLoaded();
+        if (!cancelled) {
+          setupAutocomplete();
+        }
+      } catch (err) {
+        console.warn('Google Maps autocomplete unavailable:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      listener?.remove();
+    };
+  }, []);
 
   const clearStepError = (targetStep: number) => {
     setStepValidationErrors((prev) => {
@@ -518,19 +625,31 @@ export default function EvChargerEstimator() {
               </div>
               <div>
                 <label htmlFor="address1">Address line 1</label>
-                <input id="address1" name="address1" type="text" placeholder="123 Main St" />
+                <input
+                  id="address1"
+                  name="address1"
+                  type="text"
+                  placeholder="123 Main St"
+                  ref={addressRef}
+                />
               </div>
               <div>
                 <label htmlFor="city">City</label>
-                <input id="city" name="city" type="text" placeholder="Charlotte" />
+                <input id="city" name="city" type="text" placeholder="Charlotte" ref={cityRef} />
               </div>
               <div>
                 <label htmlFor="state">State</label>
-                <input id="state" name="state" type="text" placeholder="NC" />
+                <input id="state" name="state" type="text" placeholder="NC" ref={stateRef} />
               </div>
               <div>
                 <label htmlFor="postalCode">ZIP</label>
-                <input id="postalCode" name="postalCode" type="text" placeholder="28202" />
+                <input
+                  id="postalCode"
+                  name="postalCode"
+                  type="text"
+                  placeholder="28202"
+                  ref={postalRef}
+                />
               </div>
             </div>
           </div>

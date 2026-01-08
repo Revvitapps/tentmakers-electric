@@ -25,6 +25,7 @@ The `/app` directory contains the API routes that connect Wix/Thumbtack to Servi
 | `SENDGRID_API_KEY` | API key for SendGrid (used by the LED estimator notifications) |
 | `EMAIL_FROM` | Verified “from” email address (Single Sender or domain-authenticated) |
 | `EMAIL_TO` | Comma-separated internal recipient emails for estimator notifications |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Public Google Maps API key with the Places library enabled, used for address autocomplete on the EV estimator |
 
 Thumbtack OAuth endpoints:
 
