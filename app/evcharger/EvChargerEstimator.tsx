@@ -278,7 +278,7 @@ export default function EvChargerEstimator() {
       <div className="evx-hero-glow" aria-hidden />
       <div className="evx-corner-logo" aria-hidden>
         <img
-          src="https://static.wixstatic.com/media/466b09_38f375647c9040c68a3138baac578e62~mv2.png"
+          src="/Tentmakers%20Logo%20White%20%26%20Orange.png"
           alt=""
         />
       </div>
@@ -296,7 +296,7 @@ export default function EvChargerEstimator() {
           </div>
           <div className="logo-tile">
             <img
-              src="https://static.wixstatic.com/media/466b09_38f375647c9040c68a3138baac578e62~mv2.png"
+              src="/word%20on%20white%20background%20(1).png"
               alt="Tentmakers Electric word mark"
             />
           </div>
@@ -613,6 +613,12 @@ export default function EvChargerEstimator() {
           color-scheme: dark;
           --brand-orange: #f7941d;
         }
+        :global(html, body) {
+          margin: 0;
+          padding: 0;
+          background: #02060f;
+          overflow: hidden;
+        }
         .evx-shell {
           min-height: 100vh;
           height: 100vh;
@@ -621,7 +627,7 @@ export default function EvChargerEstimator() {
           overflow: hidden;
           background:
             linear-gradient(135deg, rgba(3, 7, 14, 0.35), rgba(5, 9, 18, 0.25), rgba(3, 6, 12, 0.35)),
-            url('/ev-fullscreen-hero-charlotte-skyline.png') center 18% / 90% auto no-repeat;
+            url('/ev-fullscreen-hero-charlotte-skyline.png') center 14% / cover no-repeat;
           background-attachment: scroll;
           z-index: 0;
         }
@@ -647,7 +653,7 @@ export default function EvChargerEstimator() {
           filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
         }
         .evx-corner-logo img {
-          width: 150px;
+          width: 170px;
           height: auto;
           display: block;
         }
@@ -719,7 +725,7 @@ export default function EvChargerEstimator() {
           border: 1px solid rgba(255, 255, 255, 0.95);
         }
         .evx-head img {
-          height: 50px;
+          height: 56px;
           width: auto;
           display: block;
         }
@@ -1144,14 +1150,14 @@ export default function EvChargerEstimator() {
             padding: 18px 12px 36px;
             background:
               linear-gradient(135deg, rgba(3, 7, 14, 0.45), rgba(5, 9, 18, 0.28), rgba(3, 6, 12, 0.4)),
-              url('/ev-charger-charlotte-skyline-mobile-hero.png') center 14% / 92% auto no-repeat;
+              url('/ev-charger-charlotte-skyline-mobile-hero.png') center 14% / cover no-repeat;
           }
           .evx-corner-logo {
             top: 12px;
             right: 14px;
           }
           .evx-corner-logo img {
-            width: 110px;
+            width: 125px;
           }
           .evx-hero-glow {
             opacity: 0.65;

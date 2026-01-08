@@ -157,6 +157,10 @@ function buildCalendarDescription(payload: BookRequest) {
 
 function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
   const { customer, service, schedule, source } = req;
+  const estimateStatus =
+    service?.options && typeof (service.options as Record<string, unknown>).estimateStatus === 'string'
+      ? String((service.options as Record<string, unknown>).estimateStatus)
+      : 'Estimate Requested';
   const startIso = schedule.start;
   const endIso = schedule.end;
 
@@ -171,16 +175,25 @@ function buildEstimatePayload(req: BookRequest): EstimateCreatePayload {
 
   const fullName = `${customer.firstName} ${customer.lastName}`.trim().slice(0, 44);
   const sfSource = mapReferralSource(source);
+  const estimatePriceLine =
+    typeof service?.estimatedPrice === 'number'
+      ? `Estimated price: $${service.estimatedPrice}`
+      : null;
+  const techNotes = [service?.notes, estimatePriceLine].filter(Boolean).join('\n') || undefined;
+  const descriptionSuffix =
+    typeof service?.estimatedPrice === 'number' ? ` ($${service.estimatedPrice})` : '';
 
   return {
-    description: service?.type ? `Estimate – ${service.type}` : 'Estimate – Online request',
-    tech_notes: service?.notes ?? undefined,
+    description: service?.type
+      ? `Estimate – ${service.type}${descriptionSuffix}`
+      : `Estimate – Online request${descriptionSuffix}`,
+    tech_notes: techNotes,
     duration: durationSeconds || undefined,
     time_frame_promised_start: startTime,
     time_frame_promised_end: endTime,
     start_date: startDate,
     customer_name: fullName,
-    status: 'Estimate Requested',
+    status: estimateStatus,
     contact_first_name: customer.firstName,
     contact_last_name: customer.lastName,
     street_1: customer.addressLine1 ?? null,
