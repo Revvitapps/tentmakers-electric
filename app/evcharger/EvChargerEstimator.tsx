@@ -75,6 +75,7 @@ export default function EvChargerEstimator() {
   const formRef = useRef<HTMLFormElement | null>(null);
   const sessionId = useMemo(() => crypto.randomUUID(), []);
   const progressStagesSent = useRef<Record<string, boolean>>({});
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const estimate = useMemo(() => {
     const runOption = RUN_OPTIONS[run];
@@ -269,20 +270,28 @@ export default function EvChargerEstimator() {
 
     const formData = new FormData(e.currentTarget);
     const requiredFields = ['custName', 'custEmail', 'custPhone'] as const;
-    const missingRequired = requiredFields.find(
+    const missingRequired = requiredFields.filter(
       (field) => !String(formData.get(field) ?? '').trim()
     );
-    if (missingRequired) {
+    if (missingRequired.length > 0) {
+      const labels: Record<string, string> = {
+        custName: 'name',
+        custEmail: 'email',
+        custPhone: 'phone'
+      };
+      const missingLabels = missingRequired.map((field) => labels[field] ?? field);
       setSubmitting(false);
       setSubmitState('error');
+      setValidationErrors(missingLabels);
       setSubmitError('Please fill your name, email, and phone to continue.');
       setStep(1);
       setTimeout(() => {
-        const fieldEl = document.getElementById(missingRequired) as HTMLInputElement | null;
+        const fieldEl = document.getElementById(missingRequired[0]) as HTMLInputElement | null;
         fieldEl?.focus();
       }, 0);
       return;
     }
+    setValidationErrors([]);
     const payload = await buildPayload({ includePhotos: true });
     if (!payload) {
       setSubmitting(false);
@@ -318,6 +327,7 @@ export default function EvChargerEstimator() {
         throw new Error(data?.error || 'API error');
       }
       setSubmitState('ok');
+      setValidationErrors([]);
       e.currentTarget.reset();
       setRun('samewall');
       setPanelLoc('inside');
@@ -378,6 +388,13 @@ export default function EvChargerEstimator() {
         <form className="tmx-form" onSubmit={handleSubmit} ref={formRef}>
           <div className={`tmx-alert error ${submitState === 'error' ? 'show' : ''}`}>
             {submitError ?? 'Something went wrong. Please try again or call us.'}
+            {validationErrors.length > 0 && (
+              <ul className="field-alert">
+                {validationErrors.map((field) => (
+                  <li key={field}>{`Please provide your ${field}.`}</li>
+                ))}
+              </ul>
+            )}
           </div>
           <div className={`section ${step === 1 ? 'active' : 'hidden-section'}`}>
             <div className="section-head">
@@ -1158,6 +1175,12 @@ export default function EvChargerEstimator() {
           font-size: 13px;
           line-height: 1.4;
           display: none;
+        }
+        .field-alert {
+          margin: 8px 0 0;
+          padding-left: 20px;
+          font-size: 12px;
+          line-height: 1.5;
         }
         .tmx-alert.show {
           display: block;
