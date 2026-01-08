@@ -21,7 +21,7 @@ const RUN_OPTIONS: Record<
   across: { label: 'Across the room / different wall', min: 1600, max: 1600 }
 };
 
-const PERMIT_FEE = 50;
+const PERMIT_FEE = 89;
 
 function toIsoWithOffset(dateStr?: string | null, timeStr?: string | null) {
   if (!dateStr || !timeStr) return null;
@@ -61,8 +61,8 @@ async function readPhotos(files: File[]) {
 }
 
 export default function EvChargerEstimator() {
-  const [run, setRun] = useState<RunKey>('next');
-  const [panelLoc, setPanelLoc] = useState<PanelLoc>('inside');
+  const [run, setRun] = useState<RunKey | ''>('');
+  const [panelLoc, setPanelLoc] = useState<PanelLoc | ''>('');
   const [permit, setPermit] = useState(true);
   const [outsideOutlet, setOutsideOutlet] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
@@ -77,11 +77,14 @@ export default function EvChargerEstimator() {
   const sessionId = useMemo(() => crypto.randomUUID(), []);
   const progressStagesSent = useRef<Record<string, boolean>>({});
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [stepValidationErrors, setStepValidationErrors] = useState<Record<number, string[]>>({});
 
   const estimate = useMemo(() => {
-    const runOption = RUN_OPTIONS[run];
+    const activeRun = (run || 'next') as RunKey;
+    const activePanel = (panelLoc || 'inside') as PanelLoc;
+    const runOption = RUN_OPTIONS[activeRun];
     const permitValue = permit ? PERMIT_FEE : 0;
-    const needsCustom = panelLoc === 'interior-other';
+    const needsCustom = activePanel === 'interior-other';
     const dukeCredit = 1133;
 
     if (needsCustom) {
@@ -106,7 +109,7 @@ export default function EvChargerEstimator() {
     const netAfterCredit = Math.max(0, minTotal - dukeCredit);
     const lines = [
       `Range reference (${runOption.label}): $${minTotal.toLocaleString()}–$${maxTotal.toLocaleString()}`,
-      panelLoc === 'outside' ? 'Panel is outside the garage: weatherproof routing noted.' : null,
+      activePanel === 'outside' ? 'Panel is outside the garage: weatherproof routing noted.' : null,
       permit ? `Permit estimate: $${PERMIT_FEE}` : null,
       outsideOutlet ? 'Outside outlet requested (quoted after review).' : null,
       `Potential Duke Energy credit (rebate): -$${dukeCredit.toLocaleString()}`,
@@ -122,6 +125,65 @@ export default function EvChargerEstimator() {
 
   const handlePhotos = (e: ChangeEvent<HTMLInputElement>) => {
     setPhotos(Array.from(e.target.files ?? []));
+  };
+
+  const clearStepError = (targetStep: number) => {
+    setStepValidationErrors((prev) => {
+      if (!prev[targetStep]) return prev;
+      const next = { ...prev };
+      delete next[targetStep];
+      return next;
+    });
+  };
+
+  const validateStepFields = (stepNumber: number) => {
+    const formEl = formRef.current;
+    if (!formEl) return [];
+    const formData = new FormData(formEl);
+    const missing: string[] = [];
+    if (stepNumber === 1) {
+      const requiredFields = [
+        ['custName', 'name'],
+        ['custEmail', 'email'],
+        ['custPhone', 'phone']
+      ] as const;
+      requiredFields.forEach(([field, label]) => {
+        if (!String(formData.get(field) ?? '').trim()) {
+          missing.push(label);
+        }
+      });
+    }
+    if (stepNumber === 2) {
+      const runValue = String(formData.get('run') ?? '');
+      const panelValue = String(formData.get('panelLoc') ?? '');
+      if (!runValue) missing.push('charger location');
+      if (!panelValue) missing.push('panel location');
+    }
+    if (stepNumber === 3) {
+      const chargerValue = String(formData.get('chargerBrand') ?? '');
+      const ampsValue = String(formData.get('amps') ?? '');
+      if (!chargerValue) missing.push('charger hardware');
+      if (!ampsValue) missing.push('desired amperage');
+    }
+    return missing;
+  };
+
+  const handleNext = () => {
+    const errors = validateStepFields(step);
+    if (errors.length > 0) {
+      setStepValidationErrors((prev) => ({
+        ...prev,
+        [step]: errors
+      }));
+      return;
+    }
+    setStepValidationErrors((prev) => {
+      if (!prev[step]) return prev;
+      const next = { ...prev };
+      delete next[step];
+      return next;
+    });
+    setStep((s) => Math.min(totalSteps, s + 1));
   };
 
   async function buildPayload(options?: {
@@ -408,18 +470,49 @@ export default function EvChargerEstimator() {
                 <p>So we can confirm your install window.</p>
               </div>
             </div>
+            {stepValidationErrors[1]?.length && (
+              <div className="tmx-alert error show">
+                <p>Please complete the required contact fields before moving on.</p>
+                <ul className="field-alert">
+                  {stepValidationErrors[1]?.map((field) => (
+                    <li key={field}>{`Please provide your ${field}.`}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="tmx-grid">
               <div>
                 <label htmlFor="custName">Your full name</label>
-                <input id="custName" name="custName" type="text" placeholder="Jordan Smith" required />
+                <input
+                  id="custName"
+                  name="custName"
+                  type="text"
+                  placeholder="Jordan Smith"
+                  required
+                  onInput={() => clearStepError(1)}
+                />
               </div>
               <div>
                 <label htmlFor="custEmail">Email</label>
-                <input id="custEmail" name="custEmail" type="email" placeholder="you@email.com" required />
+                <input
+                  id="custEmail"
+                  name="custEmail"
+                  type="email"
+                  placeholder="you@email.com"
+                  required
+                  onInput={() => clearStepError(1)}
+                />
               </div>
               <div>
                 <label htmlFor="custPhone">Phone</label>
-                <input id="custPhone" name="custPhone" type="tel" placeholder="(704) 555-1234" required />
+                <input
+                  id="custPhone"
+                  name="custPhone"
+                  type="tel"
+                  placeholder="(704) 555-1234"
+                  required
+                  onInput={() => clearStepError(1)}
+                />
               </div>
               <div>
                 <label htmlFor="address1">Address line 1</label>
@@ -457,6 +550,9 @@ export default function EvChargerEstimator() {
                   value={run}
                   onChange={(e) => setRun(e.target.value as RunKey)}
                 >
+                  <option value="" disabled hidden>
+                    Choose how far the charger will be from the panel
+                  </option>
                   <option value="next">Next to panel (same wall, within 12&quot;)</option>
                   <option value="samewall">Same wall run up to ~12 ft</option>
                   <option value="across">Across the room / different wall</option>
@@ -471,6 +567,9 @@ export default function EvChargerEstimator() {
                   value={panelLoc}
                   onChange={(e) => setPanelLoc(e.target.value as PanelLoc)}
                 >
+                  <option value="" disabled hidden>
+                    Select panel location
+                  </option>
                   <option value="inside">Inside the garage</option>
                   <option value="outside">Outside the garage</option>
                   <option value="interior-other">Somewhere other than the garage (custom quote)</option>
@@ -536,7 +635,10 @@ export default function EvChargerEstimator() {
             <div className="tmx-grid">
               <div>
                 <label htmlFor="chargerBrand">Charger hardware</label>
-                <select id="chargerBrand" name="chargerBrand" defaultValue="tesla-wall">
+                <select id="chargerBrand" name="chargerBrand" defaultValue="">
+                  <option value="" disabled hidden>
+                    Choose charger hardware
+                  </option>
                   <option value="tesla-wall">Tesla Wall Connector</option>
                   <option value="tesla-universal">Tesla Universal Wall Connector</option>
                   <option value="nacs">NACS-ready (other brand)</option>
@@ -546,7 +648,10 @@ export default function EvChargerEstimator() {
               </div>
               <div>
                 <label htmlFor="amps">Desired charging amperage</label>
-                <select id="amps" name="amps" defaultValue="60">
+                <select id="amps" name="amps" defaultValue="">
+                  <option value="" disabled hidden>
+                    Select the amperage you want
+                  </option>
                   <option value="60">60A / 48A charging (typical Tesla)</option>
                   <option value="50">50A / 40A charging</option>
                   <option value="40">40A / 32A charging</option>
@@ -641,7 +746,7 @@ export default function EvChargerEstimator() {
               </button>
             )}
             {step < totalSteps && (
-              <button type="button" onClick={() => setStep((s) => Math.min(totalSteps, s + 1))}>
+              <button type="button" onClick={handleNext}>
                 Next
               </button>
             )}
@@ -675,8 +780,8 @@ export default function EvChargerEstimator() {
               </li>
             </ul>
             <p>
-              <a
-                href="https://www.duke-energy.com/home/products/ev-complete/charger-prep-credit"
+            <a
+                href="https://www.duke-energy.com/home/products/ev-complete/charger-prep-credit/customer-credit-option"
                 target="_blank"
                 rel="noreferrer"
               >
