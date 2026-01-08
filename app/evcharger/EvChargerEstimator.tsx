@@ -615,7 +615,7 @@ export default function EvChargerEstimator() {
           overflow: hidden;
           background:
             linear-gradient(135deg, rgba(3, 7, 14, 0.35), rgba(5, 9, 18, 0.25), rgba(3, 6, 12, 0.35)),
-            url('/ev-charger-charlotte-skyline-fullwidth-hero.png') center 65% / 100% auto no-repeat;
+            url('/ev-charger-charlotte-skyline-fullwidth-hero.png') center 40% / 100% auto no-repeat;
           background-attachment: scroll;
           z-index: 0;
         }
@@ -1124,7 +1124,7 @@ export default function EvChargerEstimator() {
             padding: 18px 12px 36px;
             background:
               linear-gradient(135deg, rgba(3, 7, 14, 0.45), rgba(5, 9, 18, 0.28), rgba(3, 6, 12, 0.4)),
-              url('/ev-charger-charlotte-skyline-mobile-hero.png') center top / 100% auto no-repeat;
+              url('/ev-charger-charlotte-skyline-mobile-hero.png') center 12% / 100% auto no-repeat;
           }
           .evx-hero-glow {
             opacity: 0.65;
