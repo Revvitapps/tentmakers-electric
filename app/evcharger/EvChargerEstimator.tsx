@@ -129,6 +129,18 @@ export default function EvChargerEstimator() {
     setSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
+    const requiredFields = ['custName', 'custEmail', 'custPhone'] as const;
+    const missingRequired = requiredFields.find(
+      (field) => !String(formData.get(field) ?? '').trim()
+    );
+    if (missingRequired) {
+      setSubmitting(false);
+      setSubmitState('error');
+      setStep(1);
+      const fieldEl = document.getElementById(missingRequired) as HTMLInputElement | null;
+      fieldEl?.focus();
+      return;
+    }
     const fullName = String(formData.get('custName') ?? '').trim();
     const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
     const lastName = rest.join(' ') || 'Customer';
@@ -180,6 +192,7 @@ export default function EvChargerEstimator() {
       .map(String)
       .join('\n');
 
+    const estimateStatus = depositPref === 'deposit' ? 'Estimate Won' : 'Estimate Requested';
     const payload = {
       source: 'website-calculator',
       marketingSource: 'meta-boosted-ev',
@@ -205,6 +218,7 @@ export default function EvChargerEstimator() {
           chargerHardware: chargerHardware || undefined,
           amps: ampsValue || undefined,
           photos: photoPayload.length ? photoPayload : undefined,
+          estimateStatus,
           paymentPreference: depositPref,
           depositAmount: depositPref === 'deposit' ? 100 : undefined
         }
@@ -216,6 +230,20 @@ export default function EvChargerEstimator() {
     };
 
     try {
+      if (depositPref === 'deposit') {
+        const res = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.url) {
+          throw new Error(data?.error || 'Unable to start payment');
+        }
+        window.location.href = data.url;
+        return;
+      }
+
       const res = await fetch('/api/sf/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
