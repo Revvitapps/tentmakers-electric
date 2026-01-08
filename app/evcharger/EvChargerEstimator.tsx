@@ -276,6 +276,12 @@ export default function EvChargerEstimator() {
     <div className={`${spaceGrotesk.className} evx-shell`}>
       <div className="evx-grid-bg" aria-hidden />
       <div className="evx-hero-glow" aria-hidden />
+      <div className="evx-corner-logo" aria-hidden>
+        <img
+          src="https://static.wixstatic.com/media/466b09_38f375647c9040c68a3138baac578e62~mv2.png"
+          alt=""
+        />
+      </div>
       <div className="evx-card">
         <header className="evx-head">
           <h1>EV Charger Install Estimator</h1>
@@ -615,7 +621,7 @@ export default function EvChargerEstimator() {
           overflow: hidden;
           background:
             linear-gradient(135deg, rgba(3, 7, 14, 0.35), rgba(5, 9, 18, 0.25), rgba(3, 6, 12, 0.35)),
-            url('/ev-charger-charlotte-skyline-fullwidth-hero.png') center 40% / 100% auto no-repeat;
+            url('/ev-fullscreen-hero-charlotte-skyline.png') center 18% / 90% auto no-repeat;
           background-attachment: scroll;
           z-index: 0;
         }
@@ -630,6 +636,20 @@ export default function EvChargerEstimator() {
           mix-blend-mode: screen;
           animation: pulseGlow 12s ease-in-out infinite alternate;
           opacity: 0.85;
+        }
+        .evx-corner-logo {
+          position: fixed;
+          top: 18px;
+          right: 22px;
+          z-index: 4;
+          pointer-events: none;
+          opacity: 0.92;
+          filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+        }
+        .evx-corner-logo img {
+          width: 150px;
+          height: auto;
+          display: block;
         }
         @keyframes pulseGlow {
           0% { opacity: 0.75; transform: translateY(0px); }
@@ -1124,7 +1144,14 @@ export default function EvChargerEstimator() {
             padding: 18px 12px 36px;
             background:
               linear-gradient(135deg, rgba(3, 7, 14, 0.45), rgba(5, 9, 18, 0.28), rgba(3, 6, 12, 0.4)),
-              url('/ev-charger-charlotte-skyline-mobile-hero.png') center 12% / 100% auto no-repeat;
+              url('/ev-charger-charlotte-skyline-mobile-hero.png') center 14% / 92% auto no-repeat;
+          }
+          .evx-corner-logo {
+            top: 12px;
+            right: 14px;
+          }
+          .evx-corner-logo img {
+            width: 110px;
           }
           .evx-hero-glow {
             opacity: 0.65;

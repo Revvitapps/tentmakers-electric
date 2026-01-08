@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ValidationError, validateBookRequest } from '@/lib/validation';
 import { runBookingPipeline, toSfDateFromIso } from '@/lib/sfBooking';
+import { sendBookingEmail } from '@/lib/email';
 
 const allowOrigin = process.env.CORS_ALLOW_ORIGIN || '*';
 const corsHeaders = {
@@ -29,6 +30,19 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await runBookingPipeline(payload);
+
+    try {
+      console.info('Email config present:', {
+        hasApiKey: Boolean(process.env.SENDGRID_API_KEY),
+        hasFrom: Boolean(process.env.EMAIL_FROM),
+        hasTo: Boolean(process.env.EMAIL_TO)
+      });
+      const emailStatus = await sendBookingEmail(payload, result);
+      console.info('Booking email status:', emailStatus);
+    } catch (emailErr) {
+      console.error('Failed to send booking email', emailErr);
+    }
+
     return NextResponse.json(result, { headers: corsHeaders });
   } catch (error) {
     if (error instanceof SyntaxError) {
