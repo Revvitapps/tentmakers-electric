@@ -130,10 +130,12 @@ export async function sendBookingEmail(
   const subject = `New ${serviceLabel} Request - ${payload.customer.firstName} ${payload.customer.lastName}`;
   const text = buildTextBody(payload, sfResult);
 
-  const recipientEmails = [...config.to];
-  if (isValidEmail(payload.customer.email)) {
-    recipientEmails.push(payload.customer.email.trim());
-  }
+  const recipientEmails = Array.from(
+    new Set([
+      ...config.to,
+      ...(isValidEmail(payload.customer.email) ? [payload.customer.email.trim()] : [])
+    ])
+  );
 
   const personalizations = [
     {
