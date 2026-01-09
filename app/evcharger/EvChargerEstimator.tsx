@@ -83,7 +83,6 @@ export default function EvChargerEstimator() {
   const formRef = useRef<HTMLFormElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const sessionId = useMemo(() => crypto.randomUUID(), []);
-  const progressStagesSent = useRef<Record<string, boolean>>({});
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [stepValidationErrors, setStepValidationErrors] = useState<Record<number, string[]>>({});
   const addressRef = useRef<HTMLInputElement | null>(null);
@@ -438,28 +437,6 @@ export default function EvChargerEstimator() {
     };
   }
 
-  async function sendLeadProgress(stageLabel: string) {
-    if (progressStagesSent.current[stageLabel]) return;
-    const payload = await buildPayload({ includePhotos: false, stageLabel });
-    if (!payload) return;
-    progressStagesSent.current[stageLabel] = true;
-    try {
-      await fetch('/api/sf/lead-progress', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, stage: stageLabel })
-      });
-    } catch (err) {
-      console.error('Failed to capture lead progress', err);
-    }
-  }
-
-  useEffect(() => {
-    if (step >= 2) {
-      void sendLeadProgress('EV - Partial Progress (Step 2+)');
-    }
-  }, [step]);
-
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     if (step < totalSteps) {
       e.preventDefault();
@@ -513,7 +490,6 @@ export default function EvChargerEstimator() {
       if (depositChoice === 'deposit') {
         if (checkoutStarted) return;
         setCheckoutStarted(true);
-        await sendLeadProgress('EV - Deposit Initiated');
         const res = await fetch('/api/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
