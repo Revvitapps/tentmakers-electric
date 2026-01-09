@@ -473,7 +473,8 @@ export default function EvChargerEstimator() {
     setSubmitting(true);
     setHighlightStep(null);
 
-    const formData = new FormData(e.currentTarget);
+    const formEl = e.currentTarget;
+    const formData = new FormData(formEl);
     const requiredFields = ['custName', 'custEmail', 'custPhone'] as const;
     const missingRequired = requiredFields.filter(
       (field) => !String(formData.get(field) ?? '').trim()
@@ -538,7 +539,7 @@ export default function EvChargerEstimator() {
       setSubmitState('ok');
       setValidationErrors([]);
       setHighlightStep(null);
-      e.currentTarget.reset();
+      formEl.reset();
       setRun('samewall');
       setPanelLoc('inside');
       setPermit(true);
