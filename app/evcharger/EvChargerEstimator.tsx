@@ -97,6 +97,7 @@ export default function EvChargerEstimator() {
     clearStepError(1);
     setHighlightStep(null);
   };
+  const [photoUploadMode, setPhotoUploadMode] = useState<'prompt' | 'yes' | 'no'>('prompt');
   const [lastPayload, setLastPayload] = useState<BookRequest | null>(null);
   const [lastResult, setLastResult] = useState<BookingPipelineResult | null>(null);
   const [photoUploadState, setPhotoUploadState] = useState<'idle' | 'uploading' | 'ok' | 'error'>('idle');
@@ -507,6 +508,7 @@ export default function EvChargerEstimator() {
       setLastResult(result as BookingPipelineResult);
       setPhotoUploadState('idle');
       setPhotoUploadError(null);
+      setPhotoUploadMode('prompt');
       formEl.reset();
       setRun('samewall');
       setPanelLoc('inside');
@@ -938,23 +940,53 @@ export default function EvChargerEstimator() {
 
           {submitState === 'ok' && lastPayload && lastResult && (
             <div className="photo-followup">
-              <p className="photo-followup-head">Add photos after submitting</p>
+              <p className="photo-followup-head">Share photos with our install team?</p>
               <p className="photo-followup-body">
-                Upload a few ceiling/panel photos and we&apos;ll email them directly to the team from blob storage.
+                {photoUploadMode === 'prompt'
+                  ? 'Want to provide ceiling or panel photos now?'
+                  : photoUploadMode === 'no'
+                    ? 'Thanks! We already emailed your estimate to the team.'
+                    : 'Upload a few photos and we will email them to the team so they can confirm the routing.'}
               </p>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotoSelection}
-              />
-              <div className="tmx-help">Photos help us confirm routing. We only store them in blob storage and send them via email.</div>
-              {photoUploadState === 'uploading' && <p className="photo-followup-status">Uploading photos…</p>}
-              {photoUploadState === 'ok' && <p className="photo-followup-status success">Photos uploaded and emailed.</p>}
-              {photoUploadState === 'error' && (
-                <p className="photo-followup-status error">
-                  {photoUploadError ?? 'Failed to upload photos. Please try again.'}
-                </p>
+              <div className="photo-options">
+                <button
+                  type="button"
+                  className={photoUploadMode === 'yes' ? 'active' : ''}
+                  onClick={() => setPhotoUploadMode('yes')}
+                >
+                  Yes, upload now
+                </button>
+                <button
+                  type="button"
+                  className={photoUploadMode === 'no' ? 'active' : ''}
+                  onClick={() => setPhotoUploadMode('no')}
+                >
+                  No thanks
+                </button>
+              </div>
+              {photoUploadMode === 'yes' && (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoSelection}
+                  />
+                  <div className="tmx-help">
+                    Photos help us confirm routing. We email them to the team as soon as they&apos;re uploaded.
+                  </div>
+                  {photoUploadState === 'uploading' && (
+                    <p className="photo-followup-status">Uploading photos…</p>
+                  )}
+                  {photoUploadState === 'ok' && (
+                    <p className="photo-followup-status success">Photos uploaded and emailed.</p>
+                  )}
+                  {photoUploadState === 'error' && (
+                    <p className="photo-followup-status error">
+                      {photoUploadError ?? 'Failed to upload photos. Please try again.'}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1443,6 +1475,27 @@ export default function EvChargerEstimator() {
           margin-top: 6px;
           width: 100%;
           color: #eaf3ff;
+        }
+        .photo-options {
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 10px;
+        }
+        .photo-options button {
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.35);
+          background: rgba(255, 255, 255, 0.08);
+          color: inherit;
+          padding: 8px 16px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        .photo-options button.active {
+          background: rgba(255, 255, 255, 0.2);
+          border-color: rgba(255, 255, 255, 0.6);
         }
         .photo-followup-status {
           margin-top: 6px;
