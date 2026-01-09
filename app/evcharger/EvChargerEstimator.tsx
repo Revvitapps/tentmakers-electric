@@ -3,6 +3,7 @@
 import { Space_Grotesk } from 'next/font/google';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
+import type { BookRequest, BookingPipelineResult } from '@/lib/sfTypes';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -72,7 +73,6 @@ export default function EvChargerEstimator() {
   const [panelLoc, setPanelLoc] = useState<PanelLoc | ''>('');
   const [permit, setPermit] = useState(true);
   const [outsideOutlet, setOutsideOutlet] = useState(false);
-  const [photos, setPhotos] = useState<File[]>([]);
   const [submitState, setSubmitState] = useState<'idle' | 'ok' | 'error'>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -97,6 +97,10 @@ export default function EvChargerEstimator() {
     clearStepError(1);
     setHighlightStep(null);
   };
+  const [lastPayload, setLastPayload] = useState<BookRequest | null>(null);
+  const [lastResult, setLastResult] = useState<BookingPipelineResult | null>(null);
+  const [photoUploadState, setPhotoUploadState] = useState<'idle' | 'uploading' | 'ok' | 'error'>('idle');
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
 
   const estimate = useMemo(() => {
     const activeRun: RunKey = run ? run : 'next';
@@ -146,10 +150,6 @@ export default function EvChargerEstimator() {
     if (highlightStep === targetStep) {
       setHighlightStep(null);
     }
-  };
-
-  const handlePhotos = (e: ChangeEvent<HTMLInputElement>) => {
-    setPhotos(Array.from(e.target.files ?? []));
   };
 
   // Google Maps key is static, so load the Places script only once on the client.
@@ -383,17 +383,6 @@ export default function EvChargerEstimator() {
       .map(String)
       .join('\n');
 
-    let photoPayload: Array<{ name: string; size: number; type: string; dataUrl: string }> = [];
-    if (options?.includePhotos) {
-      const photoFiles =
-        photos.length > 0
-          ? photos
-          : (formData
-              .getAll('photos')
-              .filter((f): f is File => f instanceof File && f.size > 0) as File[]);
-      photoPayload = await readPhotos(photoFiles);
-    }
-
     const estimateStatus =
       options?.stageLabel ??
       (depositChoice === 'deposit' ? 'Deposit Initiated' : 'Estimate Requested');
@@ -423,7 +412,6 @@ export default function EvChargerEstimator() {
           chargerHardware: chargerHardware || undefined,
           amps: ampsValue || undefined,
           chargerSupply: chargerSupply || undefined,
-          photos: photoPayload.length ? photoPayload : undefined,
           estimateStatus,
           paymentPreference: depositChoice,
           depositAmount: depositChoice === 'deposit' ? 100 : undefined,
@@ -477,7 +465,7 @@ export default function EvChargerEstimator() {
       return;
     }
     setValidationErrors([]);
-    const payload = await buildPayload({ includePhotos: true });
+    const payload = await buildPayload();
     if (!payload) {
       setSubmitting(false);
       setSubmitState('error');
@@ -508,19 +496,22 @@ export default function EvChargerEstimator() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      const result = await res.json().catch(() => ({} as BookingPipelineResult));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || 'API error');
+        throw new Error(result?.error || 'API error');
       }
       setSubmitState('ok');
       setValidationErrors([]);
       setHighlightStep(null);
+      setLastPayload(payload);
+      setLastResult(result as BookingPipelineResult);
+      setPhotoUploadState('idle');
+      setPhotoUploadError(null);
       formEl.reset();
       setRun('samewall');
       setPanelLoc('inside');
       setPermit(true);
       setOutsideOutlet(false);
-      setPhotos([]);
     } catch (err) {
       setCheckoutStarted(false);
       console.error(err);
@@ -528,6 +519,47 @@ export default function EvChargerEstimator() {
       setSubmitError('Something went wrong. Please try again or call us.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handlePhotoSelection = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) {
+      return;
+    }
+    if (!lastPayload || !lastResult) {
+      setPhotoUploadState('error');
+      setPhotoUploadError('Submit the form before uploading photos.');
+      return;
+    }
+    setPhotoUploadState('uploading');
+    try {
+      const photoPayload = await readPhotos(files);
+      if (!photoPayload.length) {
+        setPhotoUploadState('error');
+        setPhotoUploadError('Unable to read selected photos.');
+        return;
+      }
+      const res = await fetch('/api/evcharger/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payload: lastPayload,
+          result: lastResult,
+          photos: photoPayload
+        })
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => res.statusText);
+        throw new Error(errText);
+      }
+      setPhotoUploadState('ok');
+      setPhotoUploadError(null);
+    } catch (err) {
+      setPhotoUploadState('error');
+      setPhotoUploadError(String(err));
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -763,25 +795,6 @@ export default function EvChargerEstimator() {
                 </label>
                 <div className="tmx-help">Charlotte metro. We&apos;ll confirm exact city/county fees if different.</div>
               </div>
-              <div className="tmx-photo-wrap" style={{ gridColumn: '1 / -1' }}>
-                <label htmlFor="photos">
-                  Upload photos of the panel and parking area {panelLoc === 'interior-other' ? '(required)' : '(optional)'}
-                </label>
-                <input
-                  id="photos"
-                  name="photos"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handlePhotos}
-                  required={panelLoc === 'interior-other'}
-                />
-                <div className="tmx-help">
-                  {panelLoc === 'interior-other'
-                    ? 'Custom route: please add clear photos of the panel and parking spot.'
-                    : 'Photos help us confirm routing and final price faster.'}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -922,6 +935,29 @@ export default function EvChargerEstimator() {
               Tesla certified installer. Clean conduit runs and properly sized breakers included.
             </div>
           </div>
+
+          {submitState === 'ok' && lastPayload && lastResult && (
+            <div className="photo-followup">
+              <p className="photo-followup-head">Add photos after submitting</p>
+              <p className="photo-followup-body">
+                Upload a few ceiling/panel photos and we&apos;ll email them directly to the team from blob storage.
+              </p>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoSelection}
+              />
+              <div className="tmx-help">Photos help us confirm routing. We only store them in blob storage and send them via email.</div>
+              {photoUploadState === 'uploading' && <p className="photo-followup-status">Uploading photos…</p>}
+              {photoUploadState === 'ok' && <p className="photo-followup-status success">Photos uploaded and emailed.</p>}
+              {photoUploadState === 'error' && (
+                <p className="photo-followup-status error">
+                  {photoUploadError ?? 'Failed to upload photos. Please try again.'}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="tmx-cta">
             {step > 1 && (
@@ -1394,18 +1430,30 @@ export default function EvChargerEstimator() {
         .inline input[type='checkbox'] {
           width: auto;
         }
-        .tmx-photo-wrap {
-          border: 1px dashed rgba(76, 240, 255, 0.35);
-          background: rgba(76, 240, 255, 0.04);
+        .photo-followup {
+          margin-top: 16px;
+          border: 1px dashed rgba(255, 255, 255, 0.4);
+          background: rgba(255, 255, 255, 0.04);
           border-radius: 12px;
-          padding: 14px;
-          margin-top: 4px;
-        }
-        .tmx-photo-wrap input[type='file'] {
-          display: block;
-          margin-top: 8px;
-          font-size: 13px;
+          padding: 18px;
+          text-align: center;
           color: #eaf3ff;
+        }
+        .photo-followup input[type='file'] {
+          margin-top: 6px;
+          width: 100%;
+          color: #eaf3ff;
+        }
+        .photo-followup-status {
+          margin-top: 6px;
+          font-size: 12px;
+          line-height: 1.4;
+        }
+        .photo-followup-status.success {
+          color: #a6ffd1;
+        }
+        .photo-followup-status.error {
+          color: #ffc3c3;
         }
         .tmx-summary {
           margin-top: 20px;
