@@ -18,7 +18,7 @@ const RUN_OPTIONS: Record<
 > = {
   next: { label: 'Next to panel (same wall, within 12")', min: 600, max: 750 },
   samewall: { label: 'Same wall run up to ~12 ft', min: 1000, max: 1200 },
-  across: { label: 'Across the room / different wall', min: 1600, max: 1600 }
+  across: { label: 'Across the room / different wall', min: 1489, max: 1689 }
 };
 
 const PERMIT_FEE = 89;
@@ -81,6 +81,7 @@ export default function EvChargerEstimator() {
   const totalSteps = 4;
   const [depositChoice, setDepositChoice] = useState<'deposit' | 'questions'>('questions');
   const formRef = useRef<HTMLFormElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const sessionId = useMemo(() => crypto.randomUUID(), []);
   const progressStagesSent = useRef<Record<string, boolean>>({});
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -89,6 +90,14 @@ export default function EvChargerEstimator() {
   const cityRef = useRef<HTMLInputElement | null>(null);
   const stateRef = useRef<HTMLInputElement | null>(null);
   const postalRef = useRef<HTMLInputElement | null>(null);
+  const scrollCardToTop = () => {
+    cardRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const [highlightStep, setHighlightStep] = useState<number | null>(null);
+  const handleContactInput = () => {
+    clearStepError(1);
+    setHighlightStep(null);
+  };
 
   const estimate = useMemo(() => {
     const activeRun: RunKey = run ? run : 'next';
@@ -133,6 +142,12 @@ export default function EvChargerEstimator() {
       lines
     };
   }, [run, panelLoc, permit, outsideOutlet]);
+
+  const clearStepHighlight = (targetStep: number) => {
+    if (highlightStep === targetStep) {
+      setHighlightStep(null);
+    }
+  };
 
   const handlePhotos = (e: ChangeEvent<HTMLInputElement>) => {
     setPhotos(Array.from(e.target.files ?? []));
@@ -269,8 +284,10 @@ export default function EvChargerEstimator() {
     if (stepNumber === 3) {
       const chargerValue = String(formData.get('chargerBrand') ?? '');
       const ampsValue = String(formData.get('amps') ?? '');
+      const supplyValue = String(formData.get('chargerSupply') ?? '');
       if (!chargerValue) missing.push('charger hardware');
       if (!ampsValue) missing.push('desired amperage');
+      if (!supplyValue) missing.push('charger supply');
     }
     return missing;
   };
@@ -282,6 +299,8 @@ export default function EvChargerEstimator() {
         ...prev,
         [step]: errors
       }));
+      setHighlightStep(step);
+      scrollCardToTop();
       return;
     }
     setStepValidationErrors((prev) => {
@@ -290,7 +309,9 @@ export default function EvChargerEstimator() {
       delete next[step];
       return next;
     });
+    setHighlightStep(null);
     setStep((s) => Math.min(totalSteps, s + 1));
+    scrollCardToTop();
   };
 
   async function buildPayload(options?: {
@@ -313,6 +334,7 @@ export default function EvChargerEstimator() {
 
     const chargerHardware = String(formData.get('chargerBrand') ?? '');
     const ampsValue = String(formData.get('amps') ?? '');
+    const chargerSupply = String(formData.get('chargerSupply') ?? '');
 
     const startIso = toIsoWithOffset(
       String(formData.get('prefDate') ?? '') || undefined,
@@ -334,6 +356,13 @@ export default function EvChargerEstimator() {
 
     const activeRun: RunKey = run ? run : 'next';
     const activePanel = (panelLoc || 'inside') as PanelLoc;
+    const supplyLabel =
+      chargerSupply === 'customer'
+        ? 'Customer will supply the charger'
+        : chargerSupply === 'tentmakers'
+          ? 'Tentmakers to provide the charger'
+          : chargerSupply;
+
     const notes = [
       `Run: ${RUN_OPTIONS[activeRun].label}`,
       `Panel location: ${
@@ -346,6 +375,7 @@ export default function EvChargerEstimator() {
       `Charger hardware: ${chargerHardware || 'Unspecified'}`,
       `Desired amperage: ${ampsValue || 'Not sure'}`,
       `Permit included: ${permit ? 'Yes' : 'No'}`,
+      chargerSupply ? `Charger supply: ${supplyLabel}` : null,
       outsideOutlet ? 'Outside outlet requested' : null,
       formData.get('notes'),
       options?.stageLabel ? `Lead stage: ${options.stageLabel}` : null
@@ -393,6 +423,7 @@ export default function EvChargerEstimator() {
           outsideOutlet: outsideOutlet || undefined,
           chargerHardware: chargerHardware || undefined,
           amps: ampsValue || undefined,
+          chargerSupply: chargerSupply || undefined,
           photos: photoPayload.length ? photoPayload : undefined,
           estimateStatus,
           paymentPreference: depositChoice,
@@ -433,12 +464,14 @@ export default function EvChargerEstimator() {
     if (step < totalSteps) {
       e.preventDefault();
       setStep((s) => Math.min(totalSteps, s + 1));
+      scrollCardToTop();
       return;
     }
     e.preventDefault();
     setSubmitError(null);
     setSubmitState('idle');
     setSubmitting(true);
+    setHighlightStep(null);
 
     const formData = new FormData(e.currentTarget);
     const requiredFields = ['custName', 'custEmail', 'custPhone'] as const;
@@ -455,8 +488,10 @@ export default function EvChargerEstimator() {
       setSubmitting(false);
       setSubmitState('error');
       setValidationErrors(missingLabels);
-      setSubmitError('Please fill your name, email, and phone to continue.');
+      setSubmitError('Fill all areas in red.');
+      setHighlightStep(1);
       setStep(1);
+      scrollCardToTop();
       setTimeout(() => {
         const fieldEl = document.getElementById(missingRequired[0]) as HTMLInputElement | null;
         fieldEl?.focus();
@@ -502,6 +537,7 @@ export default function EvChargerEstimator() {
       }
       setSubmitState('ok');
       setValidationErrors([]);
+      setHighlightStep(null);
       e.currentTarget.reset();
       setRun('samewall');
       setPanelLoc('inside');
@@ -528,7 +564,7 @@ export default function EvChargerEstimator() {
           alt=""
         />
       </div>
-      <div className="evx-card">
+      <div className="evx-card" ref={cardRef}>
         <header className="evx-head">
           <h1>EV Charger Install Estimator</h1>
           <p className="lead">
@@ -537,12 +573,12 @@ export default function EvChargerEstimator() {
           </p>
           <div className="evx-badges">
             <span className="badge">Tesla Certified Installer</span>
-            <span className="badge badge-ghost">Level 2 • Charlotte Metro</span>
+            <span className="badge badge-ghost">Charlotte Metro</span>
             <span className="badge badge-ghost">Fast photo review</span>
           </div>
           <div className="logo-tile">
             <img
-              src="/word%20on%20white%20background%20(1).png"
+              src="/wordmark-pill-dark.png"
               alt="Tentmakers Electric word mark"
             />
           </div>
@@ -571,7 +607,11 @@ export default function EvChargerEstimator() {
               </ul>
             )}
           </div>
-          <div className={`section ${step === 1 ? 'active' : 'hidden-section'}`}>
+          <div
+            className={`section ${step === 1 ? 'active' : 'hidden-section'} ${
+              highlightStep === 1 ? 'highlight-error' : ''
+            }`}
+          >
             <div className="section-head">
               <span className="section-tag">Step 1</span>
               <div>
@@ -598,7 +638,7 @@ export default function EvChargerEstimator() {
                   type="text"
                   placeholder="Jordan Smith"
                   required
-                  onInput={() => clearStepError(1)}
+                  onInput={handleContactInput}
                 />
               </div>
               <div>
@@ -609,7 +649,7 @@ export default function EvChargerEstimator() {
                   type="email"
                   placeholder="you@email.com"
                   required
-                  onInput={() => clearStepError(1)}
+                  onInput={handleContactInput}
                 />
               </div>
               <div>
@@ -620,7 +660,7 @@ export default function EvChargerEstimator() {
                   type="tel"
                   placeholder="(704) 555-1234"
                   required
-                  onInput={() => clearStepError(1)}
+                  onInput={handleContactInput}
                 />
               </div>
               <div>
@@ -654,7 +694,11 @@ export default function EvChargerEstimator() {
             </div>
           </div>
 
-          <div className={`section ${step === 2 ? 'active' : 'hidden-section'}`}>
+          <div
+            className={`section ${step === 2 ? 'active' : 'hidden-section'} ${
+              highlightStep === 2 ? 'highlight-error' : ''
+            }`}
+          >
             <div className="section-head">
               <span className="section-tag">Step 2</span>
               <div>
@@ -662,14 +706,26 @@ export default function EvChargerEstimator() {
                 <p>Tell us how far the charger will be from the panel.</p>
               </div>
             </div>
+            {stepValidationErrors[2]?.length && (
+              <div className="tmx-alert error show">
+                Fill all areas in red.
+              </div>
+            )}
             <div className="tmx-grid">
               <div>
-                <label htmlFor="run">Charger location vs panel</label>
+                <label htmlFor="run">
+                  Charger location vs panel
+                  <span className="required-note">* make a selection</span>
+                </label>
                 <select
                   id="run"
                   name="run"
                   value={run}
-                  onChange={(e) => setRun(e.target.value as RunKey)}
+                  onChange={(e) => {
+                    setRun(e.target.value as RunKey);
+                    clearStepError(2);
+                    clearStepHighlight(2);
+                  }}
                 >
                   <option value="" disabled hidden>
                     Choose how far the charger will be from the panel
@@ -681,12 +737,19 @@ export default function EvChargerEstimator() {
                 <div className="tmx-help">Pick how far the charger will be from the electrical panel.</div>
               </div>
               <div>
-                <label htmlFor="panelLoc">Where is the panel?</label>
+                <label htmlFor="panelLoc">
+                  Where is the panel?
+                  <span className="required-note">* make a selection</span>
+                </label>
                 <select
                   id="panelLoc"
                   name="panelLoc"
                   value={panelLoc}
-                  onChange={(e) => setPanelLoc(e.target.value as PanelLoc)}
+                  onChange={(e) => {
+                    setPanelLoc(e.target.value as PanelLoc);
+                    clearStepError(2);
+                    clearStepHighlight(2);
+                  }}
                 >
                   <option value="" disabled hidden>
                     Select panel location
@@ -719,7 +782,7 @@ export default function EvChargerEstimator() {
                     checked={permit}
                     onChange={(e) => setPermit(e.target.checked)}
                   />
-                  <span>Add city/county permit estimate ($50)</span>
+                  <span>Add city/county permit estimate ($89)</span>
                 </label>
                 <div className="tmx-help">Charlotte metro. We&apos;ll confirm exact city/county fees if different.</div>
               </div>
@@ -756,7 +819,12 @@ export default function EvChargerEstimator() {
             <div className="tmx-grid">
               <div>
                 <label htmlFor="chargerBrand">Charger hardware</label>
-                <select id="chargerBrand" name="chargerBrand" defaultValue="">
+                <select
+                  id="chargerBrand"
+                  name="chargerBrand"
+                  defaultValue=""
+                  onInput={() => clearStepError(3)}
+                >
                   <option value="" disabled hidden>
                     Choose charger hardware
                   </option>
@@ -769,7 +837,12 @@ export default function EvChargerEstimator() {
               </div>
               <div>
                 <label htmlFor="amps">Desired charging amperage</label>
-                <select id="amps" name="amps" defaultValue="">
+                <select
+                  id="amps"
+                  name="amps"
+                  defaultValue=""
+                  onInput={() => clearStepError(3)}
+                >
                   <option value="" disabled hidden>
                     Select the amperage you want
                   </option>
@@ -778,6 +851,24 @@ export default function EvChargerEstimator() {
                   <option value="40">40A / 32A charging</option>
                   <option value="unknown">Not sure</option>
                 </select>
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label htmlFor="chargerSupply">Charger supply</label>
+                <select
+                  id="chargerSupply"
+                  name="chargerSupply"
+                  defaultValue=""
+                  onInput={() => clearStepError(3)}
+                >
+                  <option value="" disabled hidden>
+                    Who is supplying the charger?
+                  </option>
+                  <option value="customer">I am providing the charger</option>
+                  <option value="tentmakers">Please provide and deliver the charger</option>
+                </select>
+                <div className="tmx-help">
+                  Let us know whether you are supplying the hardware or want us to include it.
+                </div>
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label htmlFor="notes">Anything else? (panel upgrades, routing preferences, vehicle)</label>
@@ -893,12 +984,7 @@ export default function EvChargerEstimator() {
             <ul>
               <li>Covers conduit, wiring, outlets supplying the charger.</li>
               <li>Covers panel upgrades and breaker installation.</li>
-              <li>Covers EV charger hardware.</li>
-              <li>Does not cover hardware mounting/commissioning or permit fees.</li>
-              <li>
-                Rarely, Duke may require a Line Extension Plan if upstream service needs an upgrade (not covered by the
-                credit).
-              </li>
+              <li>Does not cover charger or permit fees.</li>
             </ul>
             <p>
             <a
@@ -913,7 +999,7 @@ export default function EvChargerEstimator() {
 
           <div className="tmx-legal">
             Pricing assumes standard garage installs. Panel located elsewhere triggers a custom quote and photo review.
-            Permit estimate defaults to $50 for city/county in Charlotte metro; we&apos;ll confirm exact fees. Across-room
+            Permit estimate defaults to $89 for city/county in Charlotte metro; we&apos;ll confirm exact fees. Across-room
             routing depends on path options. Final price confirmed by Tentmakers Electric after review.
           </div>
         </form>
@@ -1055,12 +1141,11 @@ export default function EvChargerEstimator() {
         .logo-tile {
           width: fit-content;
           margin: 0 auto 14px auto;
-          padding: 12px 16px;
-          border-radius: 16px;
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.94));
-          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.9);
-          backdrop-filter: blur(8px);
-          border: 1px solid rgba(255, 255, 255, 0.95);
+          padding: 0;
+          border-radius: 0;
+          background: transparent;
+          box-shadow: none;
+          border: none;
         }
         .evx-head img {
           height: 56px;
@@ -1151,6 +1236,26 @@ export default function EvChargerEstimator() {
           margin-bottom: 12px;
           box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
           backdrop-filter: blur(8px);
+        }
+        .highlight-error {
+          border-color: rgba(248, 113, 113, 0.7);
+          background: rgba(248, 113, 113, 0.12);
+        }
+        .highlight-error label {
+          color: #f87171;
+        }
+        .required-note {
+          display: block;
+          font-size: 12px;
+          color: #f87171;
+          margin-top: 2px;
+          font-weight: 500;
+        }
+        .highlight-error input,
+        .highlight-error select,
+        .highlight-error textarea {
+          border-color: #f87171;
+          box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
         }
         .section-head {
           display: flex;
