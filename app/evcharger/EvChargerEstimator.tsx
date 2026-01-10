@@ -23,6 +23,10 @@ const RUN_OPTIONS: Record<
 };
 
 const PERMIT_FEE = 89;
+const TIME_WINDOWS = {
+  morning: { label: 'Morning (8:00–11:00)', start: '08:00', end: '11:00' },
+  afternoon: { label: 'Afternoon (11:00–15:00)', start: '11:00', end: '15:00' }
+} as const;
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 declare global {
@@ -102,6 +106,31 @@ export default function EvChargerEstimator() {
   const [lastResult, setLastResult] = useState<BookingPipelineResult | null>(null);
   const [photoUploadState, setPhotoUploadState] = useState<'idle' | 'uploading' | 'ok' | 'error'>('idle');
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+  const [preferredDay, setPreferredDay] = useState('');
+  const [preferredSlot, setPreferredSlot] = useState<keyof typeof TIME_WINDOWS | ''>('');
+  const dayOptions = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric'
+    });
+    const base = new Date();
+    return Array.from({ length: 14 }).map((_, idx) => {
+      const date = new Date(base);
+      date.setDate(base.getDate() + idx);
+      const value = date.toISOString().slice(0, 10);
+      return { value, label: formatter.format(date) };
+    });
+  }, []);
+
+  const getSelectedSchedule = () => {
+    if (!preferredDay || !preferredSlot) return null;
+    const window = TIME_WINDOWS[preferredSlot];
+    const start = toIsoWithOffset(preferredDay, window.start);
+    const end = toIsoWithOffset(preferredDay, window.end);
+    if (!start || !end) return null;
+    return { start, end };
+  };
 
   const estimate = useMemo(() => {
     const activeRun: RunKey = run ? run : 'next';
@@ -289,6 +318,10 @@ export default function EvChargerEstimator() {
       if (!ampsValue) missing.push('desired amperage');
       if (!supplyValue) missing.push('charger supply');
     }
+    if (stepNumber === 4) {
+      if (!preferredDay) missing.push('preferred day');
+      if (!preferredSlot) missing.push('preferred window');
+    }
     return missing;
   };
 
@@ -336,23 +369,20 @@ export default function EvChargerEstimator() {
     const ampsValue = String(formData.get('amps') ?? '');
     const chargerSupply = String(formData.get('chargerSupply') ?? '');
 
-    const startIso = toIsoWithOffset(
-      String(formData.get('prefDate') ?? '') || undefined,
-      String(formData.get('prefStart') ?? '') || undefined
-    );
-
-    let scheduleStart = startIso;
-    let scheduleEnd: string | null = null;
-    if (startIso) {
-      const endDate = new Date(startIso);
-      endDate.setHours(endDate.getHours() + 2);
-      scheduleEnd = endDate.toISOString();
-    } else {
-      const startFallback = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      const endFallback = new Date(startFallback.getTime() + 2 * 60 * 60 * 1000);
+    const selectedSchedule = getSelectedSchedule();
+    let scheduleStart = selectedSchedule?.start ?? null;
+    let scheduleEnd = selectedSchedule?.end ?? null;
+    if (!scheduleStart || !scheduleEnd) {
+      const startFallback = new Date();
+      startFallback.setDate(startFallback.getDate() + 1);
+      startFallback.setHours(9, 0, 0, 0);
+      const endFallback = new Date(startFallback);
+      endFallback.setHours(endFallback.getHours() + 2);
       scheduleStart = startFallback.toISOString();
       scheduleEnd = endFallback.toISOString();
     }
+    const dayLabel = dayOptions.find((day) => day.value === preferredDay)?.label;
+    const windowLabel = preferredSlot ? TIME_WINDOWS[preferredSlot].label : '';
 
     const activeRun: RunKey = run ? run : 'next';
     const activePanel = (panelLoc || 'inside') as PanelLoc;
@@ -376,6 +406,8 @@ export default function EvChargerEstimator() {
       `Desired amperage: ${ampsValue || 'Not sure'}`,
       `Permit included: ${permit ? 'Yes' : 'No'}`,
       chargerSupply ? `Charger supply: ${supplyLabel}` : null,
+      preferredDay ? `Preferred day: ${dayLabel ?? preferredDay}` : null,
+      preferredSlot ? `Preferred window: ${windowLabel}` : null,
       outsideOutlet ? 'Outside outlet requested' : null,
       formData.get('notes'),
       options?.stageLabel ? `Lead stage: ${options.stageLabel}` : null
@@ -413,6 +445,8 @@ export default function EvChargerEstimator() {
           chargerHardware: chargerHardware || undefined,
           amps: ampsValue || undefined,
           chargerSupply: chargerSupply || undefined,
+          preferredDay: preferredDay || undefined,
+          preferredWindow: preferredSlot || undefined,
           estimateStatus,
           paymentPreference: depositChoice,
           depositAmount: depositChoice === 'deposit' ? 100 : undefined,
@@ -509,6 +543,8 @@ export default function EvChargerEstimator() {
       setPhotoUploadState('idle');
       setPhotoUploadError(null);
       setPhotoUploadMode('prompt');
+      setPreferredDay('');
+      setPreferredSlot('');
       formEl.reset();
       setRun('samewall');
       setPanelLoc('inside');
@@ -883,12 +919,40 @@ export default function EvChargerEstimator() {
             </div>
             <div className="tmx-grid">
               <div>
-                <label htmlFor="prefDate">Preferred date</label>
-                <input id="prefDate" name="prefDate" type="date" />
+                <label htmlFor="preferredDay">Preferred day</label>
+                <select
+                  id="preferredDay"
+                  name="preferredDay"
+                  value={preferredDay}
+                  onChange={(e) => setPreferredDay(e.target.value)}
+                >
+                  <option value="" disabled hidden>
+                    Choose a day
+                  </option>
+                  {dayOptions.map((day) => (
+                    <option key={day.value} value={day.value}>
+                      {day.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label htmlFor="prefStart">Preferred start time</label>
-                <input id="prefStart" name="prefStart" type="time" />
+                <label htmlFor="preferredWindow">Preferred window</label>
+                <select
+                  id="preferredWindow"
+                  name="preferredWindow"
+                  value={preferredSlot}
+                  onChange={(e) => setPreferredSlot(e.target.value as keyof typeof TIME_WINDOWS)}
+                >
+                  <option value="" disabled hidden>
+                    Choose a window
+                  </option>
+                  {Object.entries(TIME_WINDOWS).map(([key, window]) => (
+                    <option key={key} value={key}>
+                      {window.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label>How do you want to book?</label>
