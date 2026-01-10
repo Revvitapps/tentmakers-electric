@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       }, { headers: corsHeaders });
     }
 
-    const result = await runBookingPipeline(payload);
+    const result = await runBookingPipeline(payload, { includeCalendarTask: false });
 
     try {
       console.info('Email config present:', {

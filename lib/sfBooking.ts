@@ -13,16 +13,23 @@ const CUSTOMERS_ENDPOINT = 'customers';
 const ESTIMATES_ENDPOINT = 'estimates';
 const CALENDAR_TASKS_ENDPOINT = 'calendar-tasks';
 
-export async function runBookingPipeline(payload: BookRequest): Promise<BookingPipelineResult> {
+export async function runBookingPipeline(
+  payload: BookRequest,
+  opts: { includeCalendarTask?: boolean } = {}
+): Promise<BookingPipelineResult> {
+  const { includeCalendarTask = true } = opts;
   const customerId = await createCustomer(payload);
   const estimateId = await createEstimate(payload, customerId);
 
   // TODO: Add /jobs creation once the exact fields are confirmed with Service Fusion.
   const jobId: string | number | null = null;
 
-  const calendarTaskId = await createCalendarTask(payload, customerId, estimateId, jobId);
+  let calendarTaskId: string | number | null = null;
+  if (includeCalendarTask) {
+    calendarTaskId = await createCalendarTask(payload, customerId, estimateId, jobId);
+  }
 
-  const message = 'Booking created in Service Fusion';
+  const message = includeCalendarTask ? 'Booking created in Service Fusion' : 'Booking created without calendar task';
 
   return {
     status: 'ok',
@@ -31,41 +38,6 @@ export async function runBookingPipeline(payload: BookRequest): Promise<BookingP
     jobId,
     calendarTaskId,
     message
-  };
-}
-
-export async function captureLead(
-  payload: BookRequest,
-  options: { stageLabel?: string; includeCalendarTask?: boolean } = {}
-): Promise<BookingPipelineResult> {
-  const { stageLabel, includeCalendarTask = false } = options;
-
-  const normalizedPayload: BookRequest = {
-    ...payload,
-    service: {
-      ...payload.service,
-      options: {
-        ...payload.service.options,
-        estimateStatus: stageLabel ?? (payload.service.options as Record<string, unknown>)?.estimateStatus
-      }
-    }
-  };
-
-  const customerId = await createCustomer(normalizedPayload);
-  const estimateId = await createEstimate(normalizedPayload, customerId);
-
-  let calendarTaskId: string | number | null = null;
-  if (includeCalendarTask) {
-    calendarTaskId = await createCalendarTask(normalizedPayload, customerId, estimateId, null);
-  }
-
-  return {
-    status: 'ok',
-    customerId,
-    estimateId,
-    jobId: null,
-    calendarTaskId,
-    message: stageLabel ? `Lead captured (${stageLabel})` : 'Lead captured'
   };
 }
 
