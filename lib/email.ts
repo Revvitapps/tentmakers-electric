@@ -13,7 +13,7 @@ type SendGridAttachment = {
   disposition?: string;
 };
 
-function getSendGridConfig(): SendGridConfig | null {
+export function getSendGridConfig(): SendGridConfig | null {
   const apiKey = process.env.SENDGRID_API_KEY;
   const from = process.env.EMAIL_FROM;
   const to = process.env.EMAIL_TO;
@@ -174,6 +174,79 @@ export async function sendBookingEmail(
   if (!res.ok) {
     const errText = await res.text().catch(() => res.statusText);
     throw new Error(`SendGrid API failed (${res.status}): ${errText}`);
+  }
+
+  return 'sent';
+}
+
+export async function sendPhotoUploadEmail(
+  payload: BookRequest,
+  bookingId: string,
+  photos: Array<{ name?: string; type?: string; dataUrl?: string }>
+): Promise<'sent' | 'skipped'> {
+  const config = getSendGridConfig();
+  if (!config || config.to.length === 0) {
+    console.warn('Photo upload email skipped: SendGrid config not available.');
+    return 'skipped';
+  }
+
+  const attachments = photos
+    .slice(0, 4)
+    .map((photo, idx) => {
+      const parsed = dataUrlToBase64(photo.dataUrl);
+      if (!parsed) return null;
+      const filename =
+        typeof photo?.name === 'string' && photo.name.trim().length
+          ? photo.name
+          : `photo-${idx + 1}.jpg`;
+      return {
+        filename,
+        content: parsed.base64,
+        type: typeof photo?.type === 'string' ? photo.type : parsed.type,
+        disposition: 'attachment'
+      };
+    })
+    .filter(Boolean) as SendGridAttachment[];
+
+  if (!attachments.length) {
+    console.warn('Photo upload email skipped: no attachments provided.');
+    return 'skipped';
+  }
+
+  const lines = [
+    `Booking ID: ${bookingId}`,
+    '',
+    `Name: ${payload.customer.firstName} ${payload.customer.lastName}`.trim(),
+    `Email: ${payload.customer.email ?? 'N/A'}`,
+    `Phone: ${payload.customer.phone ?? 'N/A'}`,
+    '',
+    payload.service.notes || 'No additional notes.'
+  ];
+
+  const body = {
+    personalizations: [
+      {
+        to: config.to.map((email) => ({ email }))
+      }
+    ],
+    from: { email: config.from },
+    subject: `EV charger photos – ${payload.customer.firstName ?? 'Customer'} ${payload.customer.lastName ?? ''}`.trim(),
+    content: [{ type: 'text/plain', value: lines.join('\n') }],
+    attachments
+  };
+
+  const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => res.statusText);
+    throw new Error(`SendGrid photo email failed (${res.status}): ${errText}`);
   }
 
   return 'sent';

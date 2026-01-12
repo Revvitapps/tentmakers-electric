@@ -2,7 +2,7 @@
 
 import { Space_Grotesk } from 'next/font/google';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import type { BookRequest, BookingPipelineResult } from '@/lib/sfTypes';
 
 const spaceGrotesk = Space_Grotesk({
@@ -48,30 +48,6 @@ function toIsoWithOffset(dateStr?: string | null, timeStr?: string | null) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00${sign}${hoursOffset}:${minsOffset}`;
 }
 
-async function readPhotos(files: File[]) {
-  if (!files.length) return [];
-  const slice = files.slice(0, 4);
-  return Promise.all(
-    slice.map(
-      (file) =>
-        new Promise<{ name: string; size: number; type: string; dataUrl: string }>(
-          (resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () =>
-              resolve({
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                dataUrl: String(reader.result)
-              });
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          }
-        )
-    )
-  );
-}
-
 export default function EvChargerEstimator() {
   const [run, setRun] = useState<RunKey | ''>('');
   const [panelLoc, setPanelLoc] = useState<PanelLoc | ''>('');
@@ -100,11 +76,6 @@ export default function EvChargerEstimator() {
   const handleContactInput = () => {
     clearStepError(1);
   };
-  const [photoUploadMode, setPhotoUploadMode] = useState<'prompt' | 'yes' | 'no'>('prompt');
-  const [lastPayload, setLastPayload] = useState<BookRequest | null>(null);
-  const [lastResult, setLastResult] = useState<BookingPipelineResult | null>(null);
-  const [photoUploadState, setPhotoUploadState] = useState<'idle' | 'uploading' | 'ok' | 'error'>('idle');
-  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [preferredDay, setPreferredDay] = useState('');
   const [preferredSlot, setPreferredSlot] = useState<keyof typeof TIME_WINDOWS | ''>('');
   const dayOptions = useMemo(() => {
@@ -539,11 +510,6 @@ export default function EvChargerEstimator() {
       setSubmitState('ok');
       setValidationErrors([]);
       setHighlightStep(null);
-      setLastPayload(payload);
-      setLastResult(result as BookingPipelineResult);
-      setPhotoUploadState('idle');
-      setPhotoUploadError(null);
-      setPhotoUploadMode('prompt');
       setPreferredDay('');
       setPreferredSlot('');
       formEl.reset();
@@ -561,48 +527,6 @@ export default function EvChargerEstimator() {
     }
   };
 
-  const handlePhotoSelection = async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) {
-      return;
-    }
-    if (!lastPayload || !lastResult) {
-      setPhotoUploadState('error');
-      setPhotoUploadError('Submit the form before uploading photos.');
-      return;
-    }
-    setPhotoUploadState('uploading');
-    try {
-      const photoPayload = await readPhotos(files);
-      if (!photoPayload.length) {
-        setPhotoUploadState('error');
-        setPhotoUploadError('Unable to read selected photos.');
-        return;
-      }
-      const res = await fetch('/api/evcharger/photos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          payload: lastPayload,
-          result: lastResult,
-          photos: photoPayload
-        })
-      });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => res.statusText);
-        throw new Error(errText);
-      }
-      setPhotoUploadState('ok');
-      setPhotoUploadError(null);
-    } catch (err) {
-      console.error('Photo upload failed', err);
-      setPhotoUploadState('error');
-      setPhotoUploadError('Unable to deliver photos right now. Please try again later.');
-    } finally {
-      e.target.value = '';
-    }
-  };
-
   return (
     <div className={`${spaceGrotesk.className} evx-shell`}>
       <div className="evx-grid-bg" aria-hidden />
@@ -617,13 +541,12 @@ export default function EvChargerEstimator() {
         <header className="evx-head">
           <h1>EV Charger Install Estimator</h1>
           <p className="lead">
-            Clean installs with smart routing. Pricing follows the distance from your panel
-            plus permit. Share a couple photos and we&apos;ll lock it in.
+            Clean installs with smart routing. Pricing follows the distance from your panel plus permit.
           </p>
           <div className="evx-badges">
             <span className="badge">Tesla Certified Installer</span>
             <span className="badge badge-ghost">Charlotte Metro</span>
-            <span className="badge badge-ghost">Fast photo review</span>
+            <span className="badge badge-ghost">Fast scheduling</span>
           </div>
           <div className="logo-tile">
             <img
@@ -810,7 +733,7 @@ export default function EvChargerEstimator() {
                   <option value="outside">Outside the garage</option>
                   <option value="interior-other">Somewhere other than the garage (custom quote)</option>
                 </select>
-                <div className="tmx-help">If not in the garage, we&apos;ll need a custom route and photos.</div>
+                <div className="tmx-help">If not in the garage, we&apos;ll need a custom route. We&apos;ll follow up with next steps after deposit.</div>
               </div>
               <div>
                 <label className="inline">
@@ -1036,63 +959,10 @@ export default function EvChargerEstimator() {
               ))}
             </div>
             <div className="tmx-note">
-              Online estimate based on panel distance. Final pricing confirmed after photo review and a quick walkthrough.
+              Online estimate based on panel distance. Final pricing confirmed after the deposit is processed and we review the install details.
               Tesla certified installer. Clean conduit runs and properly sized breakers included.
             </div>
           </div>
-
-          {submitState === 'ok' && lastPayload && lastResult && (
-            <div className="photo-followup">
-              <p className="photo-followup-head">Share photos with our install team?</p>
-              <p className="photo-followup-body">
-                {photoUploadMode === 'prompt'
-                  ? 'Want to provide ceiling or panel photos now?'
-                  : photoUploadMode === 'no'
-                    ? 'Thanks! We already emailed your estimate to the team.'
-                    : 'Upload a few photos and we will email them to the team so they can confirm the routing.'}
-              </p>
-              <div className="photo-options">
-                <button
-                  type="button"
-                  className={photoUploadMode === 'yes' ? 'active' : ''}
-                  onClick={() => setPhotoUploadMode('yes')}
-                >
-                  Yes, upload now
-                </button>
-                <button
-                  type="button"
-                  className={photoUploadMode === 'no' ? 'active' : ''}
-                  onClick={() => setPhotoUploadMode('no')}
-                >
-                  No thanks
-                </button>
-              </div>
-              {photoUploadMode === 'yes' && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handlePhotoSelection}
-                  />
-                  <div className="tmx-help">
-                    Photos help us confirm routing. We email them to the team as soon as they&apos;re uploaded.
-                  </div>
-                  {photoUploadState === 'uploading' && (
-                    <p className="photo-followup-status">Uploading photos…</p>
-                  )}
-                  {photoUploadState === 'ok' && (
-                    <p className="photo-followup-status success">Photos uploaded and emailed.</p>
-                  )}
-                  {photoUploadState === 'error' && (
-                    <p className="photo-followup-status error">
-                      {photoUploadError ?? 'Failed to upload photos. Please try again.'}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
 
           <div className="tmx-cta">
             {step > 1 && (
@@ -1144,7 +1014,7 @@ export default function EvChargerEstimator() {
           </div>
 
           <div className="tmx-legal">
-            Pricing assumes standard garage installs. Panel located elsewhere triggers a custom quote and photo review.
+            Pricing assumes standard garage installs. Panel located elsewhere triggers a custom quote; we&apos;ll review the details after you secure the deposit.
             Permit estimate defaults to $89 for city/county in Charlotte metro; we&apos;ll confirm exact fees. Across-room
             routing depends on path options. Final price confirmed by Tentmakers Electric after review.
           </div>
@@ -1562,70 +1432,6 @@ export default function EvChargerEstimator() {
         }
         .inline input[type='checkbox'] {
           width: auto;
-        }
-        .photo-followup {
-          margin-top: 16px;
-          border: 1px solid rgba(124, 255, 179, 0.45);
-          background: linear-gradient(135deg, rgba(2, 4, 8, 0.95), rgba(4, 9, 16, 0.95));
-          border-radius: 16px;
-          padding: 20px;
-          text-align: center;
-          color: #eaf3ff;
-          box-shadow: 0 22px 46px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(124, 255, 179, 0.15);
-          backdrop-filter: blur(14px);
-        }
-        .photo-followup-head {
-          margin: 0;
-          font-size: 18px;
-          font-weight: 700;
-          color: #f6fff8;
-        }
-        .photo-followup-body {
-          margin: 6px 0 12px;
-          font-size: 13px;
-          color: #adc8f5;
-          line-height: 1.5;
-        }
-        .photo-followup input[type='file'] {
-          margin-top: 8px;
-          width: 100%;
-          padding: 8px 10px;
-          border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          background: rgba(8, 14, 24, 0.9);
-          color: #eaf3ff;
-        }
-        .photo-options {
-          display: flex;
-          justify-content: center;
-          gap: 10px;
-          flex-wrap: wrap;
-          margin-top: 10px;
-        }
-        .photo-options button {
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.4);
-          background: rgba(255, 255, 255, 0.05);
-          color: #eaf3ff;
-          padding: 8px 16px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background 0.2s ease, border-color 0.2s ease;
-        }
-        .photo-options button.active {
-          background: rgba(76, 240, 255, 0.18);
-          border-color: rgba(76, 240, 255, 0.7);
-        }
-        .photo-followup-status {
-          margin-top: 6px;
-          font-size: 12px;
-          line-height: 1.4;
-        }
-        .photo-followup-status.success {
-          color: #a6ffd1;
-        }
-        .photo-followup-status.error {
-          color: #ffc3c3;
         }
         .tmx-summary {
           margin-top: 20px;
