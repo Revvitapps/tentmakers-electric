@@ -37,6 +37,19 @@ function isValidEmail(value: unknown): value is string {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim());
 }
 
+function dedupeEmails(emails: string[]): string[] {
+  const normalized = new Map<string, string>();
+  emails.forEach((email) => {
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    const key = trimmed.toLowerCase();
+    if (!normalized.has(key)) {
+      normalized.set(key, trimmed);
+    }
+  });
+  return Array.from(normalized.values());
+}
+
 function dataUrlToBase64(dataUrl: unknown): { base64: string; type?: string } | null {
   if (typeof dataUrl !== 'string') return null;
   const commaIndex = dataUrl.indexOf(',');
@@ -130,12 +143,10 @@ export async function sendBookingEmail(
   const subject = `New ${serviceLabel} Request - ${payload.customer.firstName} ${payload.customer.lastName}`;
   const text = buildTextBody(payload, sfResult);
 
-  const recipientEmails = Array.from(
-    new Set([
-      ...config.to,
-      ...(isValidEmail(payload.customer.email) ? [payload.customer.email.trim()] : [])
-    ])
-  );
+  const recipientEmails = dedupeEmails([
+    ...config.to,
+    ...(isValidEmail(payload.customer.email) ? [payload.customer.email.trim()] : [])
+  ]);
 
   const personalizations = [
     {

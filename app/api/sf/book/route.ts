@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ValidationError, validateBookRequest } from '@/lib/validation';
 import { runBookingPipeline, toSfDateFromIso } from '@/lib/sfBooking';
 import { sendBookingEmail } from '@/lib/email';
+import type { BookingPipelineResult } from '@/lib/sfTypes';
 
 const allowOrigin = process.env.CORS_ALLOW_ORIGIN || '*';
 const corsHeaders = {
@@ -29,7 +30,22 @@ export async function POST(request: NextRequest) {
       }, { headers: corsHeaders });
     }
 
-    const result = await runBookingPipeline(payload, { includeCalendarTask: false });
+    const paymentPreference =
+      typeof payload.service?.options?.paymentPreference === 'string'
+        ? payload.service.options.paymentPreference
+        : null;
+    const shouldCreateSfBooking = paymentPreference === 'deposit';
+
+    const result: BookingPipelineResult = shouldCreateSfBooking
+      ? await runBookingPipeline(payload, { includeCalendarTask: false })
+      : {
+          status: 'ok',
+          message: 'Informational request – no Service Fusion booking created',
+          customerId: null,
+          estimateId: null,
+          jobId: null,
+          calendarTaskId: null
+        };
 
     try {
       console.info('Email config present:', {

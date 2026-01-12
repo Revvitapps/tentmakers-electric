@@ -99,7 +99,6 @@ export default function EvChargerEstimator() {
   const [highlightStep, setHighlightStep] = useState<number | null>(null);
   const handleContactInput = () => {
     clearStepError(1);
-    setHighlightStep(null);
   };
   const [photoUploadMode, setPhotoUploadMode] = useState<'prompt' | 'yes' | 'no'>('prompt');
   const [lastPayload, setLastPayload] = useState<BookRequest | null>(null);
@@ -114,13 +113,18 @@ export default function EvChargerEstimator() {
       month: 'short',
       day: 'numeric'
     });
-    const base = new Date();
-    return Array.from({ length: 14 }).map((_, idx) => {
-      const date = new Date(base);
-      date.setDate(base.getDate() + idx);
-      const value = date.toISOString().slice(0, 10);
-      return { value, label: formatter.format(date) };
-    });
+    const options: Array<{ value: string; label: string }> = [];
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    while (options.length < 14) {
+      const day = date.getDay();
+      if (day !== 0 && day !== 6) {
+        const value = date.toISOString().slice(0, 10);
+        options.push({ value, label: formatter.format(date) });
+      }
+      date.setDate(date.getDate() + 1);
+    }
+    return options;
   }, []);
 
   const getSelectedSchedule = () => {
@@ -175,12 +179,6 @@ export default function EvChargerEstimator() {
       lines
     };
   }, [run, panelLoc, permit, outsideOutlet]);
-
-  const clearStepHighlight = (targetStep: number) => {
-    if (highlightStep === targetStep) {
-      setHighlightStep(null);
-    }
-  };
 
   // Google Maps key is static, so load the Places script only once on the client.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -285,6 +283,9 @@ export default function EvChargerEstimator() {
       delete next[targetStep];
       return next;
     });
+    if (highlightStep === targetStep) {
+      setHighlightStep(null);
+    }
   };
 
   const validateStepFields = (stepNumber: number) => {
@@ -594,8 +595,9 @@ export default function EvChargerEstimator() {
       setPhotoUploadState('ok');
       setPhotoUploadError(null);
     } catch (err) {
+      console.error('Photo upload failed', err);
       setPhotoUploadState('error');
-      setPhotoUploadError(String(err));
+      setPhotoUploadError('Unable to deliver photos right now. Please try again later.');
     } finally {
       e.target.value = '';
     }
@@ -755,14 +757,19 @@ export default function EvChargerEstimator() {
             </div>
             {stepValidationErrors[2]?.length && (
               <div className="tmx-alert error show">
-                Fill all areas in red.
+                <p>Fill all areas in red.</p>
+                <ul className="field-alert">
+                  {stepValidationErrors[2].map((field) => (
+                    <li key={field}>{`Please provide your ${field}.`}</li>
+                  ))}
+                </ul>
               </div>
             )}
             <div className="tmx-grid">
               <div>
                 <label htmlFor="run">
                   Charger location vs panel
-                  <span className="required-note">* make a selection</span>
+                  <span className="required-note">* make a selection in red</span>
                 </label>
                 <select
                   id="run"
@@ -771,7 +778,6 @@ export default function EvChargerEstimator() {
                   onChange={(e) => {
                     setRun(e.target.value as RunKey);
                     clearStepError(2);
-                    clearStepHighlight(2);
                   }}
                 >
                   <option value="" disabled hidden>
@@ -795,7 +801,6 @@ export default function EvChargerEstimator() {
                   onChange={(e) => {
                     setPanelLoc(e.target.value as PanelLoc);
                     clearStepError(2);
-                    clearStepHighlight(2);
                   }}
                 >
                   <option value="" disabled hidden>
@@ -836,7 +841,11 @@ export default function EvChargerEstimator() {
             </div>
           </div>
 
-          <div className={`section ${step === 3 ? 'active' : 'hidden-section'}`}>
+          <div
+            className={`section ${step === 3 ? 'active' : 'hidden-section'} ${
+              highlightStep === 3 ? 'highlight-error' : ''
+            }`}
+          >
             <div className="section-head">
               <span className="section-tag">Step 3</span>
               <div>
@@ -844,6 +853,16 @@ export default function EvChargerEstimator() {
                 <p>Hardware, amperage, and any notes.</p>
               </div>
             </div>
+            {stepValidationErrors[3]?.length && (
+              <div className="tmx-alert error show">
+                <p>Fill all areas in red.</p>
+                <ul className="field-alert">
+                  {stepValidationErrors[3].map((field) => (
+                    <li key={field}>{`Please provide your ${field}.`}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="tmx-grid">
               <div>
                 <label htmlFor="chargerBrand">Charger hardware</label>
@@ -909,7 +928,11 @@ export default function EvChargerEstimator() {
             </div>
           </div>
 
-          <div className={`section ${step === 4 ? 'active' : 'hidden-section'}`}>
+          <div
+            className={`section ${step === 4 ? 'active' : 'hidden-section'} ${
+              highlightStep === 4 ? 'highlight-error' : ''
+            }`}
+          >
             <div className="section-head">
               <span className="section-tag">Step 4</span>
               <div>
@@ -917,6 +940,16 @@ export default function EvChargerEstimator() {
                 <p>Pick a preferred day/time and choose how to finalize.</p>
               </div>
             </div>
+            {stepValidationErrors[4]?.length && (
+              <div className="tmx-alert error show">
+                <p>Fill all areas in red.</p>
+                <ul className="field-alert">
+                  {stepValidationErrors[4].map((field) => (
+                    <li key={field}>{`Please provide your ${field}.`}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="tmx-grid">
               <div>
                 <label htmlFor="preferredDay">Preferred day</label>
@@ -924,7 +957,10 @@ export default function EvChargerEstimator() {
                   id="preferredDay"
                   name="preferredDay"
                   value={preferredDay}
-                  onChange={(e) => setPreferredDay(e.target.value)}
+                  onChange={(e) => {
+                    setPreferredDay(e.target.value);
+                    clearStepError(4);
+                  }}
                 >
                   <option value="" disabled hidden>
                     Choose a day
@@ -942,7 +978,10 @@ export default function EvChargerEstimator() {
                   id="preferredWindow"
                   name="preferredWindow"
                   value={preferredSlot}
-                  onChange={(e) => setPreferredSlot(e.target.value as keyof typeof TIME_WINDOWS)}
+                  onChange={(e) => {
+                    setPreferredSlot(e.target.value as keyof typeof TIME_WINDOWS);
+                    clearStepError(4);
+                  }}
                 >
                   <option value="" disabled hidden>
                     Choose a window
@@ -1088,15 +1127,13 @@ export default function EvChargerEstimator() {
             <h3>Duke Energy Charger Prep Credit (up to $1,133 per charger)</h3>
             <p>
               Get reimbursed for prepping your home to charge. One-time credit per EV registered to your address;
-              we&apos;ll help document the install.
+              we&apos;ll help document the install so you can claim what you need.
             </p>
             <ul>
-              <li>Covers conduit, wiring, outlets supplying the charger.</li>
-              <li>Covers panel upgrades and breaker installation.</li>
               <li>Does not cover charger or permit fees.</li>
             </ul>
             <p>
-            <a
+              <a
                 href="https://www.duke-energy.com/home/products/ev-complete/charger-prep-credit/customer-credit-option"
                 target="_blank"
                 rel="noreferrer"
@@ -1528,16 +1565,34 @@ export default function EvChargerEstimator() {
         }
         .photo-followup {
           margin-top: 16px;
-          border: 1px dashed rgba(255, 255, 255, 0.4);
-          background: rgba(255, 255, 255, 0.04);
-          border-radius: 12px;
-          padding: 18px;
+          border: 1px solid rgba(124, 255, 179, 0.45);
+          background: linear-gradient(135deg, rgba(2, 4, 8, 0.95), rgba(4, 9, 16, 0.95));
+          border-radius: 16px;
+          padding: 20px;
           text-align: center;
           color: #eaf3ff;
+          box-shadow: 0 22px 46px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(124, 255, 179, 0.15);
+          backdrop-filter: blur(14px);
+        }
+        .photo-followup-head {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 700;
+          color: #f6fff8;
+        }
+        .photo-followup-body {
+          margin: 6px 0 12px;
+          font-size: 13px;
+          color: #adc8f5;
+          line-height: 1.5;
         }
         .photo-followup input[type='file'] {
-          margin-top: 6px;
+          margin-top: 8px;
           width: 100%;
+          padding: 8px 10px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          background: rgba(8, 14, 24, 0.9);
           color: #eaf3ff;
         }
         .photo-options {
@@ -1549,17 +1604,17 @@ export default function EvChargerEstimator() {
         }
         .photo-options button {
           border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.35);
-          background: rgba(255, 255, 255, 0.08);
-          color: inherit;
+          border: 1px solid rgba(255, 255, 255, 0.4);
+          background: rgba(255, 255, 255, 0.05);
+          color: #eaf3ff;
           padding: 8px 16px;
           font-weight: 600;
           cursor: pointer;
           transition: background 0.2s ease, border-color 0.2s ease;
         }
         .photo-options button.active {
-          background: rgba(255, 255, 255, 0.2);
-          border-color: rgba(255, 255, 255, 0.6);
+          background: rgba(76, 240, 255, 0.18);
+          border-color: rgba(76, 240, 255, 0.7);
         }
         .photo-followup-status {
           margin-top: 6px;
