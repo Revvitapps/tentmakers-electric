@@ -37,15 +37,18 @@ declare global {
 
 function toIsoWithOffset(dateStr?: string | null, timeStr?: string | null) {
   if (!dateStr || !timeStr) return null;
-  const [h, m] = timeStr.split(':').map(Number);
-  const d = new Date(dateStr);
-  d.setHours(h || 0, m || 0, 0, 0);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  const [hour, minute] = timeStr.split(':').map(Number);
+  const d = new Date(year, month - 1, day, hour || 0, minute || 0, 0, 0);
   const pad = (n: number) => String(Math.abs(n)).padStart(2, '0');
   const offsetMin = d.getTimezoneOffset();
   const sign = offsetMin > 0 ? '-' : '+';
   const hoursOffset = pad(Math.floor(Math.abs(offsetMin) / 60));
   const minsOffset = pad(Math.abs(offsetMin) % 60);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00${sign}${hoursOffset}:${minsOffset}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
+    d.getMinutes()
+  )}:00${sign}${hoursOffset}:${minsOffset}`;
 }
 
 export default function EvChargerEstimator() {
@@ -472,6 +475,20 @@ export default function EvChargerEstimator() {
       return;
     }
     setValidationErrors([]);
+    const step4Errors = validateStepFields(4);
+    if (step4Errors.length > 0) {
+      setStepValidationErrors((prev) => ({
+        ...prev,
+        [4]: step4Errors
+      }));
+      setHighlightStep(4);
+      setSubmitState('error');
+      setSubmitError('Fill all areas in red.');
+      setStep(4);
+      scrollCardToTop();
+      setSubmitting(false);
+      return;
+    }
     const payload = await buildPayload();
     if (!payload) {
       setSubmitting(false);
