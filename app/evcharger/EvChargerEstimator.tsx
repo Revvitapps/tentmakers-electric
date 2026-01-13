@@ -73,7 +73,12 @@ export default function EvChargerEstimator() {
   const stateRef = useRef<HTMLInputElement | null>(null);
   const postalRef = useRef<HTMLInputElement | null>(null);
   const scrollCardToTop = () => {
-    cardRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    if (cardRef.current) {
+      cardRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
   const [highlightStep, setHighlightStep] = useState<number | null>(null);
   const handleContactInput = () => {
