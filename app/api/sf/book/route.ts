@@ -34,18 +34,11 @@ export async function POST(request: NextRequest) {
       typeof payload.service?.options?.paymentPreference === 'string'
         ? payload.service.options.paymentPreference
         : null;
-    const shouldCreateSfBooking = paymentPreference === 'deposit';
+    const includeCalendarTask = paymentPreference === 'deposit';
 
-    const result: BookingPipelineResult = shouldCreateSfBooking
-      ? await runBookingPipeline(payload, { includeCalendarTask: false })
-      : {
-          status: 'ok',
-          message: 'Informational request – no Service Fusion booking created',
-          customerId: null,
-          estimateId: null,
-          jobId: null,
-          calendarTaskId: null
-        };
+    const result: BookingPipelineResult = await runBookingPipeline(payload, {
+      includeCalendarTask
+    });
 
     try {
       console.info('Email config present:', {
