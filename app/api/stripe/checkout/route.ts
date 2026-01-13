@@ -3,15 +3,8 @@ import Stripe from 'stripe';
 import { put } from '@vercel/blob';
 import { ValidationError, validateBookRequest } from '@/lib/validation';
 
-type PhotoInput = {
-  name?: string;
-  type?: string;
-  dataUrl?: string;
-};
-
 type StoredPayload = {
   payload: ReturnType<typeof validateBookRequest>;
-  photoRefs: Array<{ url: string; name: string; type?: string }>;
 };
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
@@ -23,39 +16,6 @@ const stripe = stripeSecret
   ? new Stripe(stripeSecret, { apiVersion: '2025-12-15.clover' })
   : null;
 
-function dataUrlToBuffer(dataUrl: string) {
-  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!match) return null;
-  const [, type, base64] = match;
-  return { buffer: Buffer.from(base64, 'base64'), type };
-}
-
-function sanitizeFilename(name: string, fallback: string) {
-  const cleaned = name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
-  return cleaned || fallback;
-}
-
-async function uploadPhotos(bookingId: string, photos: PhotoInput[]) {
-  const stored: Array<{ url: string; name: string; type?: string }> = [];
-  const slice = photos.slice(0, 4);
-
-  for (let i = 0; i < slice.length; i += 1) {
-    const photo = slice[i];
-    if (!photo?.dataUrl) continue;
-    const parsed = dataUrlToBuffer(photo.dataUrl);
-    if (!parsed) continue;
-    const fallback = `photo-${i + 1}`;
-    const filename = sanitizeFilename(photo.name || fallback, fallback);
-    const blob = await put(`ev-charger/${bookingId}/${filename}`, parsed.buffer, {
-      access: 'public',
-      contentType: photo.type || parsed.type
-    });
-    stored.push({ url: blob.url, name: filename, type: photo.type || parsed.type });
-  }
-
-  return stored;
-}
-
 export async function POST(request: NextRequest) {
   try {
     if (!stripe || !priceId || !successUrl || !cancelUrl) {
@@ -63,27 +23,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const payload = validateBookRequest(body);
-    const options = (payload.service.options ?? {}) as Record<string, unknown>;
-    const photos = Array.isArray(options.photos) ? (options.photos as PhotoInput[]) : [];
-
     const bookingId = crypto.randomUUID();
-    const photoRefs = await uploadPhotos(bookingId, photos);
-
-    const storedPayload: StoredPayload = {
-      payload: {
-        ...payload,
-        service: {
-          ...payload.service,
-          options: {
-            ...options,
-            photos: undefined,
-            photoRefs
-          }
-        }
-      },
-      photoRefs
-    };
+    const payload = validateBookRequest(body);
+    const storedPayload: StoredPayload = { payload };
 
     const payloadBlob = await put(
       `ev-charger/${bookingId}/payload.json`,

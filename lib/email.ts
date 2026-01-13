@@ -6,13 +6,6 @@ type SendGridConfig = {
   to: string[];
 };
 
-type SendGridAttachment = {
-  content: string; // base64
-  filename: string;
-  type?: string;
-  disposition?: string;
-};
-
 export function getSendGridConfig(): SendGridConfig | null {
   const apiKey = process.env.SENDGRID_API_KEY;
   const from = process.env.EMAIL_FROM;
@@ -48,39 +41,6 @@ function dedupeEmails(emails: string[]): string[] {
     }
   });
   return Array.from(normalized.values());
-}
-
-function dataUrlToBase64(dataUrl: unknown): { base64: string; type?: string } | null {
-  if (typeof dataUrl !== 'string') return null;
-  const commaIndex = dataUrl.indexOf(',');
-  if (commaIndex === -1) return null;
-  const header = dataUrl.slice(0, commaIndex);
-  const base64 = dataUrl.slice(commaIndex + 1);
-  const typeMatch = header.match(/data:([^;]+);base64/);
-  return { base64, type: typeMatch?.[1] };
-}
-
-function buildAttachments(payload: BookRequest): SendGridAttachment[] {
-  const photos = (payload.service.options as any)?.photos;
-  if (!Array.isArray(photos)) return [];
-
-  return photos
-    .slice(0, 3)
-    .map((photo: any, idx: number) => {
-      const parsed = dataUrlToBase64(photo?.dataUrl);
-      if (!parsed) return null;
-      const filename =
-        typeof photo?.name === 'string' && photo.name.trim().length
-          ? photo.name
-          : `photo-${idx + 1}.jpg`;
-      return {
-        filename,
-        content: parsed.base64,
-        type: typeof photo?.type === 'string' ? photo.type : parsed.type,
-        disposition: 'attachment'
-      };
-    })
-    .filter(Boolean) as SendGridAttachment[];
 }
 
 function getServiceLabel(serviceType: string) {
@@ -138,7 +98,6 @@ export async function sendBookingEmail(
     return 'skipped';
   }
 
-  const attachments = buildAttachments(payload);
   const serviceLabel = getServiceLabel(payload.service.type);
   const subject = `New ${serviceLabel} Request - ${payload.customer.firstName} ${payload.customer.lastName}`;
   const text = buildTextBody(payload, sfResult);
@@ -158,8 +117,7 @@ export async function sendBookingEmail(
     personalizations,
     from: { email: config.from },
     subject,
-    content: [{ type: 'text/plain', value: text }],
-    attachments
+    content: [{ type: 'text/plain', value: text }]
   };
 
   const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
@@ -174,80 +132,6 @@ export async function sendBookingEmail(
   if (!res.ok) {
     const errText = await res.text().catch(() => res.statusText);
     throw new Error(`SendGrid API failed (${res.status}): ${errText}`);
-  }
-
-  return 'sent';
-}
-
-export async function sendPhotoUploadEmail(
-  payload: BookRequest,
-  bookingId: string,
-  photos: Array<{ name?: string; type?: string; dataUrl?: string }>
-): Promise<'sent' | 'skipped'> {
-  const config = getSendGridConfig();
-  if (!config || config.to.length === 0) {
-    console.warn('Photo upload email skipped: SendGrid config not available.');
-    return 'skipped';
-  }
-
-  const attachments = photos
-    .slice(0, 4)
-    .map((photo, idx) => {
-      const parsed = dataUrlToBase64(photo.dataUrl);
-      if (!parsed) return null;
-      const filename =
-        typeof photo?.name === 'string' && photo.name.trim().length
-          ? photo.name
-          : `photo-${idx + 1}.jpg`;
-      return {
-        filename,
-        content: parsed.base64,
-        type: typeof photo?.type === 'string' ? photo.type : parsed.type,
-        disposition: 'attachment'
-      };
-    })
-    .filter(Boolean) as SendGridAttachment[];
-
-  if (!attachments.length) {
-    console.warn('Photo upload email skipped: no valid photos provided.');
-    return 'skipped';
-  }
-
-  const lines = [
-    `Booking ID: ${bookingId}`,
-    '',
-    `Name: ${payload.customer.firstName} ${payload.customer.lastName}`.trim(),
-    `Email: ${payload.customer.email ?? 'N/A'}`,
-    `Phone: ${payload.customer.phone ?? 'N/A'}`,
-    '',
-    payload.service.notes || 'No additional notes.'
-  ];
-
-  const customerName = `${payload.customer.firstName ?? 'Customer'} ${payload.customer.lastName ?? ''}`.trim();
-  const body = {
-    personalizations: [
-      {
-        to: config.to.map((email) => ({ email }))
-      }
-    ],
-    from: { email: config.from },
-    subject: `EV charger photos – ${customerName}`,
-    content: [{ type: 'text/plain', value: lines.join('\n') }],
-    attachments
-  };
-
-  const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => res.statusText);
-    throw new Error(`SendGrid photo email failed (${res.status}): ${errText}`);
   }
 
   return 'sent';
@@ -292,7 +176,7 @@ export async function sendCustomerReminderEmail(
     content: [{ type: 'text/plain', value: lines.join('\n') }]
   };
 
-  const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+  const res = await fetch('https://api/sendgrid.com/v3/mail/send', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.apiKey}`,

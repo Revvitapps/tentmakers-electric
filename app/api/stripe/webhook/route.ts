@@ -6,7 +6,6 @@ import { sendBookingEmail } from '@/lib/email';
 
 type StoredPayload = {
   payload: ReturnType<typeof validateBookRequest>;
-  photoRefs?: Array<{ url: string; name: string; type?: string }>;
 };
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
@@ -14,17 +13,6 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const stripe = stripeSecret
   ? new Stripe(stripeSecret, { apiVersion: '2025-12-15.clover' })
   : null;
-
-async function fetchPhotoAsDataUrl(ref: { url: string; type?: string }) {
-  const res = await fetch(ref.url);
-  if (!res.ok) {
-    throw new Error(`Failed to fetch photo blob (${res.status})`);
-  }
-  const buffer = Buffer.from(await res.arrayBuffer());
-  const contentType = ref.type || res.headers.get('content-type') || 'image/jpeg';
-  const base64 = buffer.toString('base64');
-  return `data:${contentType};base64,${base64}`;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,20 +43,8 @@ export async function POST(request: NextRequest) {
       throw new Error(`Unable to read stored payload (${payloadRes.status})`);
     }
     const stored = (await payloadRes.json()) as StoredPayload;
-    const payload = stored.payload;
+    const payload = validateBookRequest(stored.payload);
     const options = (payload.service.options ?? {}) as Record<string, unknown>;
-    const photoRefs = stored.photoRefs ?? [];
-
-    let photos: Array<{ name: string; type?: string; dataUrl: string }> = [];
-    if (photoRefs.length) {
-      photos = await Promise.all(
-        photoRefs.map(async (ref) => ({
-          name: ref.name,
-          type: ref.type,
-          dataUrl: await fetchPhotoAsDataUrl(ref)
-        }))
-      );
-    }
 
     const enrichedPayload = validateBookRequest({
       ...payload,
@@ -76,7 +52,6 @@ export async function POST(request: NextRequest) {
         ...payload.service,
         options: {
           ...options,
-          photos: photos.length ? photos : undefined,
           depositPaid: true,
           estimateStatus: 'Estimate Won'
         }
