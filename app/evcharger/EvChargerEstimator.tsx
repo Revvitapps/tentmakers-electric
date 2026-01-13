@@ -72,12 +72,13 @@ export default function EvChargerEstimator() {
   const cityRef = useRef<HTMLInputElement | null>(null);
   const stateRef = useRef<HTMLInputElement | null>(null);
   const postalRef = useRef<HTMLInputElement | null>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
   const scrollCardToTop = () => {
     if (cardRef.current) {
       cardRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (shellRef.current) {
+      shellRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
   const [highlightStep, setHighlightStep] = useState<number | null>(null);
@@ -550,7 +551,7 @@ export default function EvChargerEstimator() {
   };
 
   return (
-    <div className={`${spaceGrotesk.className} evx-shell`}>
+    <div className={`${spaceGrotesk.className} evx-shell`} ref={shellRef}>
       <div className="evx-grid-bg" aria-hidden />
       <div className="evx-hero-glow" aria-hidden />
       <div className="evx-corner-logo" aria-hidden>
