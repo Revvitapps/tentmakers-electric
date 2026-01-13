@@ -9,12 +9,17 @@ type StoredPayload = {
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const priceId = process.env.STRIPE_EV_DEPOSIT_PRICE_ID;
-const successUrl = process.env.STRIPE_SUCCESS_URL;
+const successUrl = process.env.STRIPE_SUCCESS_URL ?? 'https://evcharger.tentmakerselectric.com/evcharger/complete';
 const cancelUrl = process.env.STRIPE_CANCEL_URL;
 
 const stripe = stripeSecret
   ? new Stripe(stripeSecret, { apiVersion: '2025-12-15.clover' })
   : null;
+
+function appendParams(base: string, params: Record<string, string>) {
+  const separator = base.includes('?') ? '&' : '?';
+  return `${base}${separator}${new URLSearchParams(params).toString()}`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,7 +44,10 @@ export async function POST(request: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}&booking_id=${bookingId}`,
+      success_url: appendParams(successUrl, {
+        session_id: '{CHECKOUT_SESSION_ID}',
+        booking_id: bookingId
+      }),
       cancel_url: cancelUrl,
       client_reference_id: bookingId,
       customer_email: payload.customer.email ?? undefined,
