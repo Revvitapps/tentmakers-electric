@@ -16,9 +16,10 @@ const stripe = stripeSecret
   ? new Stripe(stripeSecret, { apiVersion: '2025-12-15.clover' })
   : null;
 
-function appendParams(base: string, params: Record<string, string>) {
+function buildSuccessUrl(base: string, bookingId: string) {
   const separator = base.includes('?') ? '&' : '?';
-  return `${base}${separator}${new URLSearchParams(params).toString()}`;
+  const encodedBookingId = encodeURIComponent(bookingId);
+  return `${base}${separator}session_id={CHECKOUT_SESSION_ID}&booking_id=${encodedBookingId}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -44,10 +45,7 @@ export async function POST(request: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: appendParams(successUrl, {
-        session_id: '{CHECKOUT_SESSION_ID}',
-        booking_id: bookingId
-      }),
+      success_url: buildSuccessUrl(successUrl, bookingId),
       cancel_url: cancelUrl,
       client_reference_id: bookingId,
       customer_email: payload.customer.email ?? undefined,
