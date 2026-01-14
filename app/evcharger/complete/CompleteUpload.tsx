@@ -37,35 +37,42 @@ export default function CompleteUpload() {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'ok' | 'error'>('idle');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
-  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []).slice(0, MAX_PHOTOS);
-    if (!files.length || !sessionId || !bookingId) {
-      return;
-    }
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setStatus('idle');
+    setMessage(null);
+    setError(null);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !sessionId || !bookingId || submitted) return;
     setStatus('uploading');
     setMessage(null);
     setError(null);
 
     try {
-      const photos = await Promise.all(files.map((file) => fileToPhoto(file)));
+      const photo = await fileToPhoto(selectedFile);
       const res = await fetch('/api/evcharger/photos-after-deposit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, bookingId, photos })
+        body: JSON.stringify({ sessionId, bookingId, photos: [photo] })
       });
+
       if (!res.ok) {
         const text = await res.text().catch(() => res.statusText);
-        throw new Error(text || 'Unable to send photos');
+        throw new Error(text || 'Unable to send photo');
       }
       setStatus('ok');
-      setMessage('Thanks! We sent the photos to the install and ops teams.');
+      setMessage('Thanks! We shared the photo with install and ops.');
+      setSubmitted(true);
     } catch (err) {
       console.error(err);
       setStatus('error');
-      setError('Unable to deliver the photos — please try again or email hello@tentmakerselectric.com.');
-    } finally {
-      event.target.value = '';
+      setError('Unable to deliver the photo — please try again or email hello@tentmakerselectric.com.');
     }
   };
 
@@ -84,11 +91,23 @@ export default function CompleteUpload() {
         ) : (
           <div className="uploader">
             <label>
-              <span>Upload up to {MAX_PHOTOS} photos</span>
-              <input type="file" accept="image/*" multiple onChange={handleFileChange} />
+              <span>Upload a photo of your panel or parking area</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                disabled={status === 'uploading' || submitted}
+              />
             </label>
-            <small>We’ll bundle the photos with your booking details and email them to the install team.</small>
-            {status === 'uploading' && <p className="status">Uploading photos…</p>}
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={!selectedFile || status === 'uploading' || submitted}
+            >
+              {submitted ? 'Photo submitted' : 'Submit photo'}
+            </button>
+            <small>We’ll pair the photo with your booking and email it to the install team.</small>
+            {status === 'uploading' && <p className="status">Uploading photo…</p>}
             {status === 'ok' && <p className="status success">{message}</p>}
             {status === 'error' && <p className="status error">{error}</p>}
           </div>
@@ -163,6 +182,20 @@ export default function CompleteUpload() {
         }
         .status.error {
           color: #ffb4b4;
+        }
+        button {
+          margin-top: 12px;
+          border-radius: 10px;
+          padding: 10px 16px;
+          background: #0d2e58;
+          border: 1px solid rgba(255, 255, 255, 0.4);
+          color: #f2f6ff;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
         @media (max-width: 640px) {
           .complete-shell {
