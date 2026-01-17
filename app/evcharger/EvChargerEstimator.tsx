@@ -83,7 +83,7 @@ export default function EvChargerEstimator() {
   };
   const [highlightStep, setHighlightStep] = useState<number | null>(null);
   const handleContactInput = () => {
-    clearStepError(1);
+    clearStepError(4);
   };
   const [preferredDay, setPreferredDay] = useState('');
   const [preferredSlot, setPreferredSlot] = useState<keyof typeof TIME_WINDOWS | ''>('');
@@ -274,24 +274,12 @@ export default function EvChargerEstimator() {
     const formData = new FormData(formEl);
     const missing: string[] = [];
     if (stepNumber === 1) {
-      const requiredFields = [
-        ['custName', 'name'],
-        ['custEmail', 'email'],
-        ['custPhone', 'phone']
-      ] as const;
-      requiredFields.forEach(([field, label]) => {
-        if (!String(formData.get(field) ?? '').trim()) {
-          missing.push(label);
-        }
-      });
-    }
-    if (stepNumber === 2) {
       const runValue = String(formData.get('run') ?? '');
       const panelValue = String(formData.get('panelLoc') ?? '');
       if (!runValue) missing.push('charger location');
       if (!panelValue) missing.push('panel location');
     }
-    if (stepNumber === 3) {
+    if (stepNumber === 2) {
       const chargerValue = String(formData.get('chargerBrand') ?? '');
       const ampsValue = String(formData.get('amps') ?? '');
       const supplyValue = String(formData.get('chargerSupply') ?? '');
@@ -300,6 +288,16 @@ export default function EvChargerEstimator() {
       if (!supplyValue) missing.push('charger supply');
     }
     if (stepNumber === 4) {
+      const contactFields = [
+        ['custName', 'name'],
+        ['custEmail', 'email'],
+        ['custPhone', 'phone']
+      ] as const;
+      contactFields.forEach(([field, label]) => {
+        if (!String(formData.get(field) ?? '').trim()) {
+          missing.push(label);
+        }
+      });
       if (!preferredDay) missing.push('preferred day');
       if (!preferredSlot) missing.push('preferred window');
     }
@@ -471,8 +469,8 @@ export default function EvChargerEstimator() {
       setSubmitState('error');
       setValidationErrors(missingLabels);
       setSubmitError('Fill all areas in red.');
-      setHighlightStep(1);
-      setStep(1);
+      setHighlightStep(4);
+      setStep(4);
       scrollCardToTop();
       setTimeout(() => {
         const fieldEl = document.getElementById(missingRequired[0]) as HTMLInputElement | null;
@@ -500,7 +498,7 @@ export default function EvChargerEstimator() {
       setSubmitting(false);
       setSubmitState('error');
       setSubmitError('Please fill your name, email, and phone to continue.');
-      setStep(1);
+      setStep(4);
       return;
     }
 
@@ -610,102 +608,15 @@ export default function EvChargerEstimator() {
             <div className="section-head">
               <span className="section-tag">Step 1</span>
               <div>
-                <h3>Contact</h3>
-                <p>So we can confirm your install window.</p>
-              </div>
-            </div>
-            {stepValidationErrors[1]?.length && (
-              <div className="tmx-alert error show">
-                <p>Please complete the required contact fields before moving on.</p>
-                <ul className="field-alert">
-                  {stepValidationErrors[1]?.map((field) => (
-                    <li key={field}>{`Please provide your ${field}.`}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div className="tmx-grid">
-              <div>
-                <label htmlFor="custName">Your full name</label>
-                <input
-                  id="custName"
-                  name="custName"
-                  type="text"
-                  placeholder="Jordan Smith"
-                  required
-                  onInput={handleContactInput}
-                />
-              </div>
-              <div>
-                <label htmlFor="custEmail">Email</label>
-                <input
-                  id="custEmail"
-                  name="custEmail"
-                  type="email"
-                  placeholder="you@email.com"
-                  required
-                  onInput={handleContactInput}
-                />
-              </div>
-              <div>
-                <label htmlFor="custPhone">Phone</label>
-                <input
-                  id="custPhone"
-                  name="custPhone"
-                  type="tel"
-                  placeholder="(704) 555-1234"
-                  required
-                  onInput={handleContactInput}
-                />
-              </div>
-              <div>
-                <label htmlFor="address1">Address line 1</label>
-                <input
-                  id="address1"
-                  name="address1"
-                  type="text"
-                  placeholder="123 Main St"
-                  ref={addressRef}
-                />
-              </div>
-              <div>
-                <label htmlFor="city">City</label>
-                <input id="city" name="city" type="text" placeholder="Charlotte" ref={cityRef} />
-              </div>
-              <div>
-                <label htmlFor="state">State</label>
-                <input id="state" name="state" type="text" placeholder="NC" ref={stateRef} />
-              </div>
-              <div>
-                <label htmlFor="postalCode">ZIP</label>
-                <input
-                  id="postalCode"
-                  name="postalCode"
-                  type="text"
-                  placeholder="28202"
-                  ref={postalRef}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div
-            className={`section ${step === 2 ? 'active' : 'hidden-section'} ${
-              highlightStep === 2 ? 'highlight-error' : ''
-            }`}
-          >
-            <div className="section-head">
-              <span className="section-tag">Step 2</span>
-              <div>
                 <h3>Location & routing</h3>
                 <p>Tell us how far the charger will be from the panel.</p>
               </div>
             </div>
-            {stepValidationErrors[2]?.length && (
+            {stepValidationErrors[1]?.length && (
               <div className="tmx-alert error show">
                 <p>Fill all areas in red.</p>
                 <ul className="field-alert">
-                  {stepValidationErrors[2].map((field) => (
+                  {stepValidationErrors[1].map((field) => (
                     <li key={field}>{`Please provide your ${field}.`}</li>
                   ))}
                 </ul>
@@ -795,15 +706,42 @@ export default function EvChargerEstimator() {
             <div className="section-head">
               <span className="section-tag">Step 3</span>
               <div>
+                <h3>Estimate</h3>
+                <p>Review your projected price, Duke rebate, and permit estimate before finalizing.</p>
+              </div>
+            </div>
+            <div className="tmx-summary">
+              <p className="tmx-summary-headline">Estimated total</p>
+              <p className="tmx-money">{estimate.label}</p>
+              <div className="tmx-breakdown">
+                {estimate.lines.map((line) => (
+                  <div key={line}>• {line}</div>
+                ))}
+              </div>
+              <div className="tmx-note">
+                Online estimate based on panel distance. Final pricing confirmed after deposit processing and a quick walkthrough.
+                Tesla certified installer. Clean conduit runs and properly sized breakers included.
+              </div>
+            </div>
+          </div>
+
+          <div
+            className={`section ${step === 2 ? 'active' : 'hidden-section'} ${
+              highlightStep === 2 ? 'highlight-error' : ''
+            }`}
+          >
+            <div className="section-head">
+              <span className="section-tag">Step 2</span>
+              <div>
                 <h3>Charger details</h3>
                 <p>Hardware, amperage, and any notes.</p>
               </div>
             </div>
-            {stepValidationErrors[3]?.length && (
+            {stepValidationErrors[2]?.length && (
               <div className="tmx-alert error show">
                 <p>Fill all areas in red.</p>
                 <ul className="field-alert">
-                  {stepValidationErrors[3].map((field) => (
+                  {stepValidationErrors[2].map((field) => (
                     <li key={field}>{`Please provide your ${field}.`}</li>
                   ))}
                 </ul>
@@ -862,6 +800,9 @@ export default function EvChargerEstimator() {
                 <div className="tmx-help">
                   Let us know whether you are supplying the hardware or want us to include it.
                 </div>
+                <div className="tmx-help" style={{ fontStyle: 'italic', marginTop: '2px' }}>
+                  Additional hardware charges apply depending on charger specifications.
+                </div>
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label htmlFor="notes">Anything else? (panel upgrades, routing preferences, vehicle)</label>
@@ -882,8 +823,8 @@ export default function EvChargerEstimator() {
             <div className="section-head">
               <span className="section-tag">Step 4</span>
               <div>
-                <h3>Schedule & finish</h3>
-                <p>Pick a preferred day/time and choose how to finalize.</p>
+                <h3>Contact & schedule</h3>
+                <p>Confirm your details, preferred window, and how you want to finish the booking.</p>
               </div>
             </div>
             {stepValidationErrors[4]?.length && (
@@ -897,6 +838,69 @@ export default function EvChargerEstimator() {
               </div>
             )}
             <div className="tmx-grid">
+              <div>
+                <label htmlFor="custName">Your full name</label>
+                <input
+                  id="custName"
+                  name="custName"
+                  type="text"
+                  placeholder="Jordan Smith"
+                  required
+                  onInput={handleContactInput}
+                />
+              </div>
+              <div>
+                <label htmlFor="custEmail">Email</label>
+                <input
+                  id="custEmail"
+                  name="custEmail"
+                  type="email"
+                  placeholder="you@email.com"
+                  required
+                  onInput={handleContactInput}
+                />
+              </div>
+              <div>
+                <label htmlFor="custPhone">Phone</label>
+                <input
+                  id="custPhone"
+                  name="custPhone"
+                  type="tel"
+                  placeholder="(704) 555-1234"
+                  required
+                  onInput={handleContactInput}
+                />
+              </div>
+              <div>
+                <label htmlFor="address1">Address line 1</label>
+                <input
+                  id="address1"
+                  name="address1"
+                  type="text"
+                  placeholder="123 Main St"
+                  ref={addressRef}
+                />
+              </div>
+              <div>
+                <label htmlFor="city">City</label>
+                <input id="city" name="city" type="text" placeholder="Charlotte" ref={cityRef} />
+              </div>
+              <div>
+                <label htmlFor="state">State</label>
+                <input id="state" name="state" type="text" placeholder="NC" ref={stateRef} />
+              </div>
+              <div>
+                <label htmlFor="postalCode">ZIP</label>
+                <input
+                  id="postalCode"
+                  name="postalCode"
+                  type="text"
+                  placeholder="28202"
+                  ref={postalRef}
+                />
+              </div>
+            </div>
+            <div className="tmx-grid" style={{ marginTop: '16px' }}>
               <div>
                 <label htmlFor="preferredDay">Preferred day</label>
                 <select
@@ -970,20 +974,6 @@ export default function EvChargerEstimator() {
                   </label>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div className="tmx-summary">
-            <p className="tmx-summary-headline">Estimated total</p>
-            <p className="tmx-money">{estimate.label}</p>
-            <div className="tmx-breakdown">
-              {estimate.lines.map((line) => (
-                <div key={line}>• {line}</div>
-              ))}
-            </div>
-            <div className="tmx-note">
-              Online estimate based on panel distance. Final pricing confirmed after deposit processing and a quick walkthrough.
-              Tesla certified installer. Clean conduit runs and properly sized breakers included.
             </div>
           </div>
 
