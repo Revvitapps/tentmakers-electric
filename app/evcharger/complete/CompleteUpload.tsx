@@ -1,208 +1,137 @@
 'use client';
 
-import { useEffect, useState, type ChangeEvent } from 'react';
-
-type PhotoInput = {
-  name: string;
-  type?: string;
-  dataUrl: string;
-};
-
-const MAX_PHOTOS = 4;
-
-function fileToPhoto(file: File): Promise<PhotoInput> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () =>
-      resolve({
-        name: file.name,
-        type: file.type,
-        dataUrl: String(reader.result)
-      });
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+const DEPOSIT_LINK = process.env.NEXT_PUBLIC_EV_DEPOSIT_LINK ?? 'https://buy.stripe.com/test_placeholder';
 
 export default function CompleteUpload() {
-  const [sessionId, setSessionId] = useState('');
-  const [bookingId, setBookingId] = useState('');
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    setSessionId(params.get('session_id') ?? '');
-    setBookingId(params.get('booking_id') ?? '');
-  }, []);
-  const [status, setStatus] = useState<'idle' | 'uploading' | 'ok' | 'error'>('idle');
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    setSelectedFile(file);
-    setStatus('idle');
-    setMessage(null);
-    setError(null);
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile || !sessionId || !bookingId || submitted) return;
-    setStatus('uploading');
-    setMessage(null);
-    setError(null);
-
-    try {
-      const photo = await fileToPhoto(selectedFile);
-      const res = await fetch('/api/evcharger/photos-after-deposit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, bookingId, photos: [photo] })
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => res.statusText);
-        throw new Error(text || 'Unable to send photo');
-      }
-      setStatus('ok');
-      setMessage('Thanks! We shared the photo with install and ops.');
-      setSubmitted(true);
-    } catch (err) {
-      console.error(err);
-      setStatus('error');
-      setError('Unable to deliver the photo — please try again or email hello@tentmakerselectric.com.');
-    }
-  };
-
   return (
-    <section className="complete-shell">
-      <div className="complete-card">
-        <h1>Thanks for securing your install slot!</h1>
-        <p className="lead">
-          We received your deposit and will confirm the install window shortly. You can upload photos of your panel
-          or proposed charger location so the install team can lock in the routing.
-        </p>
-        {!sessionId || !bookingId ? (
-          <p className="alert">
-            Looks like the booking reference is missing. Please return to the calculator, or email hello@tentmakerselectric.com with a screenshot.
+    <>
+      <main className="complete-shell">
+        <div className="complete-card">
+          <p className="eyebrow">EV Charger Install</p>
+          <h1>Thank you for reaching out!</h1>
+          <p className="lead">
+            We have your information and will get back to you shortly with a plan for the install.
+            If you&apos;d like to lock in a time right now, you can pay the $100 deposit below and we will treat
+            it as a confirmed reservation.
           </p>
-        ) : (
-          <div className="uploader">
-            <label>
-              <span>Upload a photo of your panel or parking area</span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                disabled={status === 'uploading' || submitted}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={handleUpload}
-              disabled={!selectedFile || status === 'uploading' || submitted}
+          <div className="actions">
+            <a
+              className="book-btn"
+              href={DEPOSIT_LINK}
+              target="_blank"
+              rel="noreferrer"
             >
-              {submitted ? 'Photo submitted' : 'Submit photo'}
-            </button>
-            <small>We’ll pair the photo with your booking and email it to the install team.</small>
-            {status === 'uploading' && <p className="status">Uploading photo…</p>}
-            {status === 'ok' && <p className="status success">{message}</p>}
-            {status === 'error' && <p className="status error">{error}</p>}
+              <span className="icon">
+                <img
+                  src="/Tesla-Home-Charger-Kent-WA.jpeg"
+                  alt="EV charger icon"
+                  width={28}
+                  height={28}
+                />
+              </span>
+              Book your time now
+            </a>
+            <p className="support">
+              Prefer to keep chatting? Reply to the confirmation email or call us at (704) 555-1234 and we&apos;ll help you plan the install.
+            </p>
           </div>
-        )}
-      </div>
+        </div>
+      </main>
       <style jsx>{`
         .complete-shell {
           min-height: 100vh;
-          padding: 60px 24px;
-          background: #02060f;
-          color: #f2f6ff;
+          padding: 0;
+          background:
+            linear-gradient(135deg, rgba(2, 6, 15, 0.8), rgba(2, 6, 15, 0.4)),
+            url('/ev-fullscreen-hero-charlotte-skyline.png') center / cover no-repeat;
           display: flex;
           align-items: center;
           justify-content: center;
         }
         .complete-card {
-          max-width: 700px;
+          max-width: 720px;
           width: 100%;
-          border-radius: 24px;
-          padding: 32px;
-          background: rgba(6, 10, 20, 0.92);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
-          text-align: center;
+          margin: 0 16px;
+          padding: 48px 36px;
+          background: rgba(4, 9, 19, 0.9);
+          border-radius: 28px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow: 0 30px 80px rgba(0, 0, 0, 0.65);
+          color: #f4f7ff;
+          text-align: left;
+        }
+        .eyebrow {
+          text-transform: uppercase;
+          letter-spacing: 0.3em;
+          font-size: 12px;
+          margin: 0 0 12px;
+          color: rgba(255, 255, 255, 0.6);
         }
         h1 {
-          margin-bottom: 8px;
-          font-size: 32px;
+          margin: 0 0 12px;
+          font-size: 36px;
         }
         .lead {
-          margin: 0 0 16px;
-          color: #c3d3eb;
+          margin: 0 0 28px;
+          font-size: 18px;
           line-height: 1.6;
+          color: rgba(255, 255, 255, 0.84);
         }
-        .alert {
-          color: #fca5a5;
-        }
-        .uploader {
-          margin-top: 24px;
-          padding: 16px;
-          border-radius: 16px;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px dashed rgba(255, 255, 255, 0.4);
-        }
-        label {
+        .actions {
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 24px;
+        }
+        .book-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 28px;
+          border-radius: 999px;
+          background: linear-gradient(135deg, #35d6ff, #0d3a7a);
+          color: #fff;
           font-weight: 600;
-          font-size: 14px;
-          color: #eaf3ff;
+          font-size: 18px;
+          text-transform: uppercase;
+          text-decoration: none;
+          box-shadow: 0 12px 30px rgba(13, 59, 122, 0.6);
+          border: none;
         }
-        input[type='file'] {
-          padding: 10px;
-          border-radius: 10px;
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          background: rgba(255, 255, 255, 0.04);
-          color: #f2f6ff;
-          cursor: pointer;
+        .book-btn:hover {
+          transform: translateY(-1px);
         }
-        small {
+        .icon {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.12);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .icon img {
+          width: 22px;
+          height: auto;
           display: block;
-          margin-top: 12px;
-          color: #9cb3d9;
         }
-        .status {
-          margin-top: 12px;
-          font-size: 13px;
-        }
-        .status.success {
-          color: #a6ffd1;
-        }
-        .status.error {
-          color: #ffb4b4;
-        }
-        button {
-          margin-top: 12px;
-          border-radius: 10px;
-          padding: 10px 16px;
-          background: #0d2e58;
-          border: 1px solid rgba(255, 255, 255, 0.4);
-          color: #f2f6ff;
-          font-weight: 600;
-          cursor: pointer;
-        }
-        button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
+        .support {
+          margin: 0;
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.7);
         }
         @media (max-width: 640px) {
-          .complete-shell {
-            padding: 40px 16px;
+          .complete-card {
+            padding: 32px 22px;
+          }
+          h1 {
+            font-size: 32px;
+          }
+          .book-btn {
+            font-size: 16px;
+            padding: 12px 22px;
           }
         }
       `}</style>
-    </section>
+    </>
   );
 }
