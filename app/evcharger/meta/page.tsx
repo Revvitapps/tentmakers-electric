@@ -136,19 +136,19 @@ export default function MetaEvChargerLanding() {
           <p className="lead">
             Tesla-certified electricians serving the Charlotte metro. No sales pressure. Clean installs. Fully permitted.
           </p>
-          <div className="evx-badges">
+          <div className="hero-pill-stack">
             <span className="badge">Tesla Certified</span>
             <span className="badge badge-ghost">Licensed Electricians</span>
             <span className="badge badge-ghost">Charlotte Metro</span>
+            <a className="primary-cta" href="#lead-form">
+              Get My EV Charger Quote -&gt;
+            </a>
           </div>
-          <a className="primary-cta" href="#lead-form">
-            Get My EV Charger Quote -&gt;
-          </a>
           <p className="microcopy">Takes ~60 seconds | No obligation | Licensed &amp; insured</p>
         </header>
 
         <section className="meta-panel">
-        <h2>How Your EV Charger Install Works</h2>
+        <h2>How It Works</h2>
         <ul className="steps">
           <li><strong>1)</strong> Tell us about your home</li>
           <li><strong>2)</strong> We confirm details and pricing</li>
@@ -351,7 +351,7 @@ export default function MetaEvChargerLanding() {
           color: rgba(255, 255, 255, 0.82);
           line-height: 1.6;
         }
-        .evx-badges {
+        .hero-pill-stack {
           display: flex;
           justify-content: center;
           gap: 10px;
@@ -546,6 +546,16 @@ export default function MetaEvChargerLanding() {
           }
           .evx-corner-logo img {
             width: 120px;
+          }
+          .hero-pill-stack {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .hero-pill-stack > * {
+            width: 100%;
+          }
+          .primary-cta {
+            font-size: 15px;
           }
         }
       `}</style>
