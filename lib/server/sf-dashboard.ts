@@ -23,6 +23,8 @@ export type SfDashboardData = {
     estimateAcceptanceRate: number;
     jobs: number;
     completedJobs: number;
+    openEstimates: number;
+    openJobs: number;
     projectedRevenue: number;
     bookedRevenue: number;
   };
@@ -53,6 +55,16 @@ export type SfDashboardData = {
     amount: number;
     date: string;
   }>;
+  openPipeline: Array<{
+    id: string;
+    type: "Estimate" | "Job";
+    customer: string;
+    status: string;
+    source: string;
+    owner: string;
+    amount: number;
+    date: string;
+  }>;
 };
 
 const DEFAULT_PAGE_SIZE = 200;
@@ -73,6 +85,8 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
 
   const acceptedEstimates = estimates.filter((item) => isAcceptedEstimateStatus(extractStatus(item))).length;
   const completedJobs = jobs.filter((item) => isCompletedJobStatus(extractStatus(item))).length;
+  const openEstimates = estimates.filter((item) => !isClosedLikeStatus(extractStatus(item))).length;
+  const openJobs = jobs.filter((item) => !isClosedLikeStatus(extractStatus(item))).length;
 
   const projectedRevenue = round2(sumBy(estimates, (item) => extractAmount(item)));
   const bookedRevenue = round2(sumBy(jobs, (item) => extractAmount(item)));
@@ -83,6 +97,8 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
     estimateAcceptanceRate: estimates.length ? round1((acceptedEstimates / estimates.length) * 100) : 0,
     jobs: jobs.length,
     completedJobs,
+    openEstimates,
+    openJobs,
     projectedRevenue,
     bookedRevenue,
   };
@@ -166,6 +182,35 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 20);
 
+  const openPipeline = [
+    ...estimates
+      .filter((item) => !isClosedLikeStatus(extractStatus(item)))
+      .map((item) => ({
+        id: extractId(item),
+        type: "Estimate" as const,
+        customer: extractCustomer(item),
+        status: extractStatus(item),
+        source: extractSource(item),
+        owner: extractOwner(item),
+        amount: round2(extractAmount(item)),
+        date: extractDate(item) ?? "",
+      })),
+    ...jobs
+      .filter((item) => !isClosedLikeStatus(extractStatus(item)))
+      .map((item) => ({
+        id: extractId(item),
+        type: "Job" as const,
+        customer: extractCustomer(item),
+        status: extractStatus(item),
+        source: extractSource(item),
+        owner: extractOwner(item),
+        amount: round2(extractAmount(item)),
+        date: extractDate(item) ?? "",
+      })),
+  ]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 250);
+
   return {
     generatedAt: new Date().toISOString(),
     range: { start, end },
@@ -174,6 +219,7 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
     ownerRows,
     topCustomers,
     recentJobs,
+    openPipeline,
   };
 }
 
@@ -347,6 +393,24 @@ function isAcceptedEstimateStatus(status: string): boolean {
 function isCompletedJobStatus(status: string): boolean {
   const normalized = status.toLowerCase();
   return ["completed", "invoiced", "closed", "done"].some((needle) => normalized.includes(needle));
+}
+
+function isClosedLikeStatus(status: string): boolean {
+  const normalized = status.toLowerCase();
+  return [
+    "completed",
+    "invoiced",
+    "closed",
+    "done",
+    "accepted",
+    "approved",
+    "won",
+    "converted",
+    "cancel",
+    "declined",
+    "rejected",
+    "lost",
+  ].some((needle) => normalized.includes(needle));
 }
 
 function isInRange(date: string | null, start: string, end: string): boolean {

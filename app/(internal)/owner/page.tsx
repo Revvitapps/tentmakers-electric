@@ -1,7 +1,9 @@
-import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/server/auth";
+import { SfDashboardView } from "@/components/va/sf-dashboard-view";
+import { getSfDashboardData } from "@/lib/server/sf-dashboard";
 
 export default async function OwnerPage() {
   await requireRole("Joe");
-  redirect("/sf-dashboard");
+  const data = await getSfDashboardData();
+  return <SfDashboardView data={data} />;
 }

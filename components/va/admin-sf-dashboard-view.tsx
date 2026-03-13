@@ -3,17 +3,11 @@ import Image from "next/image";
 import type { SfDashboardData } from "@/lib/server/sf-dashboard";
 import styles from "@/components/va/brand-dashboard.module.css";
 
-type SfDashboardViewProps = {
+type AdminSfDashboardViewProps = {
   data: SfDashboardData;
 };
 
-const usd = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
-
-export function SfDashboardView({ data }: SfDashboardViewProps) {
+export function AdminSfDashboardView({ data }: AdminSfDashboardViewProps) {
   return (
     <div className={styles.shell}>
       <section className={styles.hero}>
@@ -27,23 +21,23 @@ export function SfDashboardView({ data }: SfDashboardViewProps) {
             priority
           />
           <div>
-            <h1 className={styles.title}>Owner Command Dashboard</h1>
-            <p className={styles.subtitle}>Service Fusion live data from {data.range.start} to {data.range.end}</p>
+            <h1 className={styles.title}>Operations Dashboard</h1>
+            <p className={styles.subtitle}>Service Fusion live pipeline from {data.range.start} to {data.range.end}</p>
           </div>
         </div>
         <div className={styles.badges}>
-          <span className={styles.badge}>Financial + Pipeline</span>
+          <span className={styles.badge}>No Manual Entry</span>
           <span className={styles.badge}>Updated {new Date(data.generatedAt).toLocaleString()}</span>
         </div>
       </section>
 
       <section className={styles.kpiGrid}>
-        <Kpi label="Booked Revenue" value={usd.format(data.totals.bookedRevenue)} />
-        <Kpi label="Projected Revenue" value={usd.format(data.totals.projectedRevenue)} />
-        <Kpi label="Jobs" value={String(data.totals.jobs)} />
-        <Kpi label="Completed Jobs" value={String(data.totals.completedJobs)} />
+        <Kpi label="Open Pipeline" value={String(data.openPipeline.length)} />
         <Kpi label="Open Jobs" value={String(data.totals.openJobs)} />
-        <Kpi label="Estimates" value={String(data.totals.estimates)} />
+        <Kpi label="Open Estimates" value={String(data.totals.openEstimates)} />
+        <Kpi label="Jobs (YTD)" value={String(data.totals.jobs)} />
+        <Kpi label="Completed Jobs" value={String(data.totals.completedJobs)} />
+        <Kpi label="Estimates (YTD)" value={String(data.totals.estimates)} />
         <Kpi label="Accepted Estimates" value={String(data.totals.acceptedEstimates)} />
         <Kpi label="Acceptance Rate" value={`${data.totals.estimateAcceptanceRate}%`} />
       </section>
@@ -51,7 +45,7 @@ export function SfDashboardView({ data }: SfDashboardViewProps) {
       <section className={styles.section}>
         <header className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>Open Pipeline (Not Closed)</h2>
-          <span className={styles.sectionMeta}>{data.openPipeline.length} active items</span>
+          <span className={styles.sectionMeta}>Includes both estimates and jobs</span>
         </header>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
@@ -63,7 +57,6 @@ export function SfDashboardView({ data }: SfDashboardViewProps) {
                 <th>Status</th>
                 <th>Source</th>
                 <th>Owner</th>
-                <th>Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -79,38 +72,6 @@ export function SfDashboardView({ data }: SfDashboardViewProps) {
                   <td>{row.status}</td>
                   <td>{row.source}</td>
                   <td>{row.owner}</td>
-                  <td className={styles.money}>{usd.format(row.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <header className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Revenue by Source</h2>
-          <span className={styles.sectionMeta}>{data.sourceRows.length} sources tracked</span>
-        </header>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Source</th>
-                <th>Jobs</th>
-                <th>Estimates</th>
-                <th>Booked Revenue</th>
-                <th>Share</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.sourceRows.map((row) => (
-                <tr key={row.source}>
-                  <td>{row.source}</td>
-                  <td>{row.jobs}</td>
-                  <td>{row.estimates}</td>
-                  <td className={styles.money}>{usd.format(row.revenue)}</td>
-                  <td>{row.shareOfBookedRevenue}%</td>
                 </tr>
               ))}
             </tbody>

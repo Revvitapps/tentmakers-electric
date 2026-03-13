@@ -6,24 +6,12 @@ import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-  },
-  {
-    href: "/scripts",
-    label: "Scripts",
-  },
-  {
-    href: "/kpis",
-    label: "KPIs",
-  },
-];
-
 export function InternalNav({ role, followUpsDue }: { role: "VA" | "Joe"; followUpsDue: number }) {
   const pathname = usePathname();
-  const visibleItems = role === "Joe" ? [...navItems, { href: "/sf-dashboard", label: "SF Dashboard" }] : navItems;
+  const visibleItems =
+    role === "Joe"
+      ? [{ href: "/owner", label: "Owner Dashboard" }, { href: "/sf-dashboard", label: "Financial View" }]
+      : [{ href: "/admin", label: "Admin Dashboard" }, { href: "/dashboard", label: "Pipeline View" }];
 
   return (
     <div className="rounded-2xl border border-zinc-200/80 bg-white/95 p-2 shadow-soft backdrop-blur">
