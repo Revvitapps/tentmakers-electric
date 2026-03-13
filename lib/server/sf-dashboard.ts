@@ -55,6 +55,48 @@ export type SfDashboardData = {
     amount: number;
     date: string;
   }>;
+  cro: {
+    prospects: {
+      count: number;
+      potentialRevenue: number;
+      rows: Array<{
+        id: string;
+        customer: string;
+        source: string;
+        status: string;
+        contactDate: string;
+        owner: string;
+        potentialValue: number;
+      }>;
+    };
+    paidJobs: {
+      count: number;
+      paidRevenue: number;
+      rows: Array<{
+        id: string;
+        customer: string;
+        source: string;
+        status: string;
+        startDate: string;
+        completedDate: string;
+        paidDate: string;
+        amountPaid: number;
+      }>;
+    };
+    outstanding: {
+      count: number;
+      amountDue: number;
+      rows: Array<{
+        id: string;
+        customer: string;
+        source: string;
+        status: string;
+        startDate: string;
+        dueDate: string;
+        amountDue: number;
+      }>;
+    };
+  };
   openPipeline: Array<{
     id: string;
     type: "Estimate" | "Job";
@@ -182,6 +224,85 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 20);
 
+  const prospectsRows = estimates
+    .map((item) => ({
+      id: extractId(item),
+      customer: extractCustomer(item),
+      source: extractSource(item),
+      status: extractStatus(item),
+      contactDate: extractDate(item) ?? "",
+      owner: extractOwner(item),
+      potentialValue: round2(extractAmount(item)),
+    }))
+    .sort((a, b) => b.contactDate.localeCompare(a.contactDate));
+
+  const paidJobsRows = jobs
+    .map((item) => {
+      const amountDue = extractAmountDue(item);
+      const amountPaid = extractAmountPaid(item);
+      return {
+        id: extractId(item),
+        customer: extractCustomer(item),
+        source: extractSource(item),
+        status: extractStatus(item),
+        startDate: extractStartDate(item) ?? "",
+        completedDate: extractCompletedDate(item) ?? "",
+        paidDate: extractPaidDate(item) ?? "",
+        amountDue,
+        amountPaid,
+        total: extractAmount(item),
+      };
+    })
+    .filter((row) => isPaidJob(row.status, row.amountPaid, row.amountDue, row.total))
+    .map((row) => ({
+      id: row.id,
+      customer: row.customer,
+      source: row.source,
+      status: row.status,
+      startDate: row.startDate,
+      completedDate: row.completedDate,
+      paidDate: row.paidDate,
+      amountPaid: round2(row.amountPaid > 0 ? row.amountPaid : row.total),
+    }))
+    .sort((a, b) => (b.paidDate || b.completedDate || b.startDate).localeCompare(a.paidDate || a.completedDate || a.startDate));
+
+  const outstandingRows = jobs
+    .map((item) => {
+      const total = extractAmount(item);
+      const paid = extractAmountPaid(item);
+      const explicitDue = extractAmountDue(item);
+      const amountDue = round2(explicitDue > 0 ? explicitDue : Math.max(total - paid, 0));
+      return {
+        id: extractId(item),
+        customer: extractCustomer(item),
+        source: extractSource(item),
+        status: extractStatus(item),
+        startDate: extractStartDate(item) ?? "",
+        dueDate: extractDueDate(item) ?? "",
+        amountDue,
+      };
+    })
+    .filter((row) => row.amountDue > 0.01)
+    .sort((a, b) => (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31"));
+
+  const cro = {
+    prospects: {
+      count: prospectsRows.length,
+      potentialRevenue: round2(sumBy(prospectsRows, (row) => row.potentialValue)),
+      rows: prospectsRows,
+    },
+    paidJobs: {
+      count: paidJobsRows.length,
+      paidRevenue: round2(sumBy(paidJobsRows, (row) => row.amountPaid)),
+      rows: paidJobsRows,
+    },
+    outstanding: {
+      count: outstandingRows.length,
+      amountDue: round2(sumBy(outstandingRows, (row) => row.amountDue)),
+      rows: outstandingRows,
+    },
+  };
+
   const openPipeline = [
     ...estimates
       .filter((item) => !isClosedLikeStatus(extractStatus(item)))
@@ -219,6 +340,7 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
     ownerRows,
     topCustomers,
     recentJobs,
+    cro,
     openPipeline,
   };
 }
@@ -359,6 +481,38 @@ function extractDate(record: AnyRecord): string | null {
   return null;
 }
 
+function extractStartDate(record: AnyRecord): string | null {
+  return extractKnownDate(record, ["start_date", "job_date", "date", "created_at"]);
+}
+
+function extractCompletedDate(record: AnyRecord): string | null {
+  return extractKnownDate(record, ["completed_at", "completed_date", "date_completed", "finished_at"]);
+}
+
+function extractPaidDate(record: AnyRecord): string | null {
+  return extractKnownDate(record, ["paid_at", "paid_date", "date_paid", "payment_date", "invoice_paid_at"]);
+}
+
+function extractDueDate(record: AnyRecord): string | null {
+  return extractKnownDate(record, ["due_date", "payment_due_date", "invoice_due_date"]);
+}
+
+function extractKnownDate(record: AnyRecord, keys: string[]): string | null {
+  const value = firstValue(record, keys);
+  const text = toText(value);
+  if (!text) return null;
+
+  const isoDateMatch = text.match(/\d{4}-\d{2}-\d{2}/);
+  if (isoDateMatch) return isoDateMatch[0];
+
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  return null;
+}
+
 function extractAmount(record: AnyRecord): number {
   const direct = firstNumber(record, [
     "total",
@@ -385,6 +539,31 @@ function extractAmount(record: AnyRecord): number {
   return combined > 0 ? combined : 0;
 }
 
+function extractAmountPaid(record: AnyRecord): number {
+  return (
+    firstNumber(record, [
+      "payments_deposits",
+      "payments_total",
+      "amount_paid",
+      "paid_amount",
+      "deposit_paid",
+      "payments",
+    ]) ?? 0
+  );
+}
+
+function extractAmountDue(record: AnyRecord): number {
+  return (
+    firstNumber(record, [
+      "total_due",
+      "amount_due",
+      "balance_due",
+      "open_balance",
+      "due_amount",
+    ]) ?? 0
+  );
+}
+
 function isAcceptedEstimateStatus(status: string): boolean {
   const normalized = status.toLowerCase();
   return ["accepted", "approved", "won", "converted", "closed won"].some((needle) => normalized.includes(needle));
@@ -393,6 +572,15 @@ function isAcceptedEstimateStatus(status: string): boolean {
 function isCompletedJobStatus(status: string): boolean {
   const normalized = status.toLowerCase();
   return ["completed", "invoiced", "closed", "done"].some((needle) => normalized.includes(needle));
+}
+
+function isPaidJob(status: string, amountPaid: number, amountDue: number, total: number): boolean {
+  const normalized = status.toLowerCase();
+  if (amountDue <= 0.01 && (amountPaid > 0 || total > 0)) return true;
+  if (["paid", "invoiced", "completed", "closed"].some((needle) => normalized.includes(needle))) {
+    return amountPaid > 0 || total > 0;
+  }
+  return false;
 }
 
 function isClosedLikeStatus(status: string): boolean {

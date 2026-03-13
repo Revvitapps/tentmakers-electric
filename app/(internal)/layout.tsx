@@ -24,8 +24,8 @@ export default async function InternalLayout({ children }: { children: ReactNode
         <header className="rounded-2xl border border-zinc-200 bg-white/95 px-5 py-4 shadow-soft backdrop-blur">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <Link href="/dashboard" className="text-xl font-semibold tracking-tight text-zinc-900">
-                Tentmakers Electric - VA Dashboard
+              <Link href={profile.role === "Joe" ? "/owner" : "/admin"} className="text-xl font-semibold tracking-tight text-zinc-900">
+                Tentmakers Electric - {profile.role === "Joe" ? "Owner Dashboard" : "VA Dashboard"}
               </Link>
               <p className="text-sm text-zinc-600">No floating leads. SOP-first execution.</p>
             </div>

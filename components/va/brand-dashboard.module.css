@@ -74,6 +74,24 @@
   background: var(--tmx-surface);
 }
 
+.drillCard {
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.drillCard:hover {
+  transform: translateY(-1px);
+  border-color: #fdba74;
+  box-shadow: 0 8px 22px -14px rgba(249, 115, 22, 0.45);
+}
+
+.drillActive {
+  border-color: #f97316;
+  box-shadow: 0 12px 30px -18px rgba(249, 115, 22, 0.45);
+  background: linear-gradient(145deg, #fff, #fff7ed);
+}
+
 .kpiLabel {
   margin: 0;
   color: var(--tmx-muted);
@@ -86,6 +104,13 @@
   margin: 6px 0 0;
   font-size: 1.55rem;
   font-weight: 700;
+}
+
+.kpiHint {
+  margin: 5px 0 0;
+  color: #9a3412;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .section {
