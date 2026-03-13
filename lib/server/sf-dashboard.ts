@@ -187,7 +187,7 @@ async function buildSfDashboardData(start: string, end: string): Promise<SfDashb
   ]);
 
   const estimates = estimatesRaw.filter((item) => isInRange(extractDate(item), start, end));
-  const jobs = jobsRaw.filter((item) => isInRange(extractDate(item), start, end));
+  const jobs = jobsRaw.filter((item) => isJobInRange(item, start, end));
 
   const acceptedEstimates = estimates.filter((item) => isAcceptedEstimateStatus(extractStatus(item))).length;
   const completedJobs = jobs.filter((item) => isCompletedJobStatus(extractStatus(item))).length;
@@ -711,6 +711,18 @@ function isClosedLikeStatus(status: string): boolean {
 function isInRange(date: string | null, start: string, end: string): boolean {
   if (!date) return true;
   return date >= start && date <= end;
+}
+
+function isJobInRange(record: AnyRecord, start: string, end: string): boolean {
+  const dates = [
+    extractDate(record),
+    extractStartDate(record),
+    extractCompletedDate(record),
+    extractPaidDate(record),
+  ].filter((value): value is string => Boolean(value));
+
+  if (!dates.length) return true;
+  return dates.some((date) => date >= start && date <= end);
 }
 
 function diffDaysFromToday(value: string): number {
