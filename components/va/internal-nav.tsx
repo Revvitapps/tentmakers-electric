@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 export function InternalNav({ role, followUpsDue }: { role: "VA" | "Joe"; followUpsDue: number }) {
   const pathname = usePathname();
+  const roleLabel = role === "Joe" ? "Owner" : "VA";
   const visibleItems =
     role === "Joe"
       ? [
@@ -39,7 +40,7 @@ export function InternalNav({ role, followUpsDue }: { role: "VA" | "Joe"; follow
 
         <div className="ml-auto flex items-center gap-2">
           <Badge variant="outline" className="rounded-full border-zinc-300 bg-zinc-50 px-3 py-1 text-zinc-700">
-            Role: {role}
+            Role: {roleLabel}
           </Badge>
           <Badge className="rounded-full bg-rose-600 px-3 py-1 text-white">Due: {followUpsDue}</Badge>
         </div>

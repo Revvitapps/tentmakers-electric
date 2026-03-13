@@ -7,7 +7,7 @@ import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { loginSchema } from "@/lib/validators/auth";
 import { failure, success, type ActionResult } from "@/lib/server/action-types";
 
-export async function loginAction(input: unknown): Promise<ActionResult> {
+export async function loginAction(input: unknown): Promise<ActionResult<{ redirectTo: string }>> {
   try {
     const parsed = loginSchema.safeParse(input);
 
@@ -20,7 +20,7 @@ export async function loginAction(input: unknown): Promise<ActionResult> {
     }
 
     const supabase = createServerSupabaseClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: parsed.data.email,
       password: parsed.data.password,
     });
@@ -29,9 +29,20 @@ export async function loginAction(input: unknown): Promise<ActionResult> {
       return failure(error.message);
     }
 
+    const userId = data.user?.id;
+    let redirectTo = "/admin";
+    if (userId) {
+      const { data: profile } = await (supabase as any).from("profiles").select("role").eq("id", userId).maybeSingle();
+      if (profile?.role === "Joe") {
+        redirectTo = "/owner";
+      }
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/owner");
     revalidatePath("/dashboard");
     revalidatePath("/sf-dashboard");
-    return success("Login successful.");
+    return success("Login successful.", { redirectTo });
   } catch (error) {
     return failure(error instanceof Error ? error.message : "Login failed due to a server error.");
   }
