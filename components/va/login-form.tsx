@@ -22,8 +22,8 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
   const form = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      role: "admin",
-      accessKey: "",
+      email: "",
+      password: "",
     },
   });
 
@@ -45,8 +45,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
       }
 
       toast.success("Welcome back.");
-      const target = redirectTo && redirectTo !== "/login" ? redirectTo : values.role === "owner" ? "/owner" : "/admin";
-      router.push(target);
+      router.push(redirectTo);
       router.refresh();
     });
   });
@@ -55,7 +54,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
     <Card className="w-full max-w-md rounded-3xl border-zinc-200 bg-white/95 shadow-soft">
       <CardHeader>
         <CardTitle className="text-2xl">Tentmakers Access</CardTitle>
-        <CardDescription>Choose your role and enter the shared access key.</CardDescription>
+        <CardDescription>Sign in with your email and password.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {error ? (
@@ -67,20 +66,13 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="role">Role</Label>
-            <select
-              id="role"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-              {...form.register("role")}
-            >
-              <option value="admin">Admin</option>
-              <option value="owner">Owner</option>
-            </select>
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" autoComplete="email" placeholder="name@tentmakerselectric.com" {...form.register("email")} />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="accessKey">Access key</Label>
-            <Input id="accessKey" type="password" autoComplete="current-password" placeholder="••••••••" {...form.register("accessKey")} />
+            <Label htmlFor="password">Password</Label>
+            <Input id="password" type="password" autoComplete="current-password" placeholder="••••••••" {...form.register("password")} />
           </div>
 
           <Button type="submit" className="w-full" disabled={isPending}>
