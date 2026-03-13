@@ -177,7 +177,7 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
 const getCachedSfDashboardData = unstable_cache(
   async (start: string, end: string) => buildSfDashboardData(start, end),
   ["sf-dashboard-v3"],
-  { revalidate: 60 }
+  { revalidate: 60, tags: ["sf-dashboard"] }
 );
 
 async function buildSfDashboardData(start: string, end: string): Promise<SfDashboardData> {

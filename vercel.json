@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/sf/dashboard-refresh",
+      "schedule": "5 5 * * *"
+    }
+  ]
+}
+
