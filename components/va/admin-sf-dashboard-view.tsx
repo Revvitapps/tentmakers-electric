@@ -11,6 +11,14 @@ type AdminSfDashboardViewProps = {
 };
 
 type VaBucketKey = "new" | "d2" | "d5" | "d10";
+type SaveState = "idle" | "saving" | "saved" | "error";
+type RowDraft = {
+  followUpDate: string;
+  callOutcome: string;
+  callNote: string;
+  state: SaveState;
+  message: string;
+};
 
 const usd = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -24,6 +32,7 @@ function upperName(value: string) {
 
 export function AdminSfDashboardView({ data }: AdminSfDashboardViewProps) {
   const [bucket, setBucket] = useState<VaBucketKey | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, RowDraft>>({});
 
   const bucketConfig = useMemo(() => {
     if (bucket === null || bucket === "new") {
@@ -55,6 +64,75 @@ export function AdminSfDashboardView({ data }: AdminSfDashboardViewProps) {
   }, [bucket, data]);
 
   const closeGap = Math.max(0, data.va.targetCloseRate - data.va.currentCloseRate);
+
+  function rowKey(type: "Estimate" | "Job", id: string) {
+    return `${type}-${id}`;
+  }
+
+  function getDraft(key: string): RowDraft {
+    return (
+      drafts[key] ?? {
+        followUpDate: "",
+        callOutcome: "",
+        callNote: "",
+        state: "idle",
+        message: "",
+      }
+    );
+  }
+
+  function updateDraft(key: string, patch: Partial<RowDraft>) {
+    setDrafts((prev) => ({
+      ...prev,
+      [key]: {
+        ...(prev[key] ?? {
+          followUpDate: "",
+          callOutcome: "",
+          callNote: "",
+          state: "idle" as const,
+          message: "",
+        }),
+        ...patch,
+      },
+    }));
+  }
+
+  async function pushToSf(type: "Estimate" | "Job", id: string) {
+    const key = rowKey(type, id);
+    const draft = getDraft(key);
+    updateDraft(key, { state: "saving", message: "" });
+
+    try {
+      const response = await fetch("/api/sf/workspace-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recordType: type,
+          recordId: id,
+          followUpDate: draft.followUpDate || undefined,
+          callOutcome: draft.callOutcome || undefined,
+          callNote: draft.callNote || undefined,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as { error?: string; taskIds?: Array<string | number> };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to sync with Service Fusion");
+      }
+
+      const count = Array.isArray(payload.taskIds) ? payload.taskIds.length : 0;
+      updateDraft(key, {
+        state: "saved",
+        message: count > 0 ? `Synced (${count} task${count === 1 ? "" : "s"})` : "Synced",
+      });
+    } catch (error) {
+      updateDraft(key, {
+        state: "error",
+        message: error instanceof Error ? error.message : "Sync failed",
+      });
+    }
+  }
 
   return (
     <div className={styles.shell}>
@@ -140,10 +218,14 @@ export function AdminSfDashboardView({ data }: AdminSfDashboardViewProps) {
                 <th>Source</th>
                 <th>Owner</th>
                 <th>Potential</th>
+                <th>Workspace Sync</th>
               </tr>
             </thead>
             <tbody>
-              {bucketConfig.rows.map((row) => (
+              {bucketConfig.rows.map((row) => {
+                const key = rowKey(row.type, row.id);
+                const draft = getDraft(key);
+                return (
                 <tr key={`${bucket}-${row.type}-${row.id}-${row.date}`}>
                   <td>
                     <span className={`${styles.typePill} ${row.type === "Estimate" ? styles.typeEstimate : styles.typeJob}`}>
@@ -157,8 +239,58 @@ export function AdminSfDashboardView({ data }: AdminSfDashboardViewProps) {
                   <td>{row.source}</td>
                   <td>{upperName(row.owner)}</td>
                   <td className={styles.money}>{usd.format(row.amount)}</td>
+                  <td>
+                    <div className={styles.syncStack}>
+                      <div className={styles.syncRow}>
+                        <label className={styles.srOnly} htmlFor={`follow-up-${key}`}>Follow-up date</label>
+                        <input
+                          id={`follow-up-${key}`}
+                          type="date"
+                          value={draft.followUpDate}
+                          onChange={(event) => updateDraft(key, { followUpDate: event.target.value, state: "idle", message: "" })}
+                          className={styles.syncInput}
+                        />
+                        <label className={styles.srOnly} htmlFor={`outcome-${key}`}>Call outcome</label>
+                        <select
+                          id={`outcome-${key}`}
+                          value={draft.callOutcome}
+                          onChange={(event) => updateDraft(key, { callOutcome: event.target.value, state: "idle", message: "" })}
+                          className={styles.syncSelect}
+                        >
+                          <option value="">Outcome</option>
+                          <option value="No answer">No answer</option>
+                          <option value="Spoke - follow-up">Spoke - follow-up</option>
+                          <option value="Estimate sent">Estimate sent</option>
+                          <option value="Scheduled">Scheduled</option>
+                          <option value="Not interested">Not interested</option>
+                        </select>
+                      </div>
+                      <div className={styles.syncRow}>
+                        <label className={styles.srOnly} htmlFor={`note-${key}`}>Call note</label>
+                        <input
+                          id={`note-${key}`}
+                          type="text"
+                          placeholder="Call note"
+                          value={draft.callNote}
+                          onChange={(event) => updateDraft(key, { callNote: event.target.value, state: "idle", message: "" })}
+                          className={styles.syncInput}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => pushToSf(row.type, row.id)}
+                          disabled={draft.state === "saving"}
+                          className={styles.syncButton}
+                        >
+                          {draft.state === "saving" ? "Sending..." : "Send"}
+                        </button>
+                      </div>
+                      {draft.message ? (
+                        <p className={draft.state === "error" ? styles.syncError : styles.syncOk}>{draft.message}</p>
+                      ) : null}
+                    </div>
+                  </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
