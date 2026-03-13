@@ -69,7 +69,7 @@ export function AdminSfDashboardView({ data }: AdminSfDashboardViewProps) {
             priority
           />
           <div>
-            <h1 className={styles.title}>VA Conversion Board</h1>
+            <h1 className={styles.title}>Angel&apos;s Workspace</h1>
             <p className={styles.subtitle}>Live Service Fusion lead flow • optimized for daily follow-up execution</p>
           </div>
         </div>
