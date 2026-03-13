@@ -97,6 +97,54 @@ export type SfDashboardData = {
       }>;
     };
   };
+  va: {
+    targetCloseRate: number;
+    currentCloseRate: number;
+    newToday: Array<{
+      id: string;
+      type: "Estimate" | "Job";
+      customer: string;
+      status: string;
+      source: string;
+      owner: string;
+      amount: number;
+      date: string;
+      daysOpen: number;
+    }>;
+    followUpDay2To4: Array<{
+      id: string;
+      type: "Estimate" | "Job";
+      customer: string;
+      status: string;
+      source: string;
+      owner: string;
+      amount: number;
+      date: string;
+      daysOpen: number;
+    }>;
+    followUpDay5To9: Array<{
+      id: string;
+      type: "Estimate" | "Job";
+      customer: string;
+      status: string;
+      source: string;
+      owner: string;
+      amount: number;
+      date: string;
+      daysOpen: number;
+    }>;
+    followUpDay10Plus: Array<{
+      id: string;
+      type: "Estimate" | "Job";
+      customer: string;
+      status: string;
+      source: string;
+      owner: string;
+      amount: number;
+      date: string;
+      daysOpen: number;
+    }>;
+  };
   openPipeline: Array<{
     id: string;
     type: "Estimate" | "Job";
@@ -332,6 +380,20 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 250);
 
+  const openPipelineWithAge = openPipeline.map((row) => ({
+    ...row,
+    daysOpen: diffDaysFromToday(row.date),
+  }));
+
+  const va = {
+    targetCloseRate: 80,
+    currentCloseRate: totals.estimateAcceptanceRate,
+    newToday: openPipelineWithAge.filter((row) => row.daysOpen <= 1),
+    followUpDay2To4: openPipelineWithAge.filter((row) => row.daysOpen >= 2 && row.daysOpen <= 4),
+    followUpDay5To9: openPipelineWithAge.filter((row) => row.daysOpen >= 5 && row.daysOpen <= 9),
+    followUpDay10Plus: openPipelineWithAge.filter((row) => row.daysOpen >= 10),
+  };
+
   return {
     generatedAt: new Date().toISOString(),
     range: { start, end },
@@ -341,6 +403,7 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
     topCustomers,
     recentJobs,
     cro,
+    va,
     openPipeline,
   };
 }
@@ -604,6 +667,17 @@ function isClosedLikeStatus(status: string): boolean {
 function isInRange(date: string | null, start: string, end: string): boolean {
   if (!date) return true;
   return date >= start && date <= end;
+}
+
+function diffDaysFromToday(value: string): number {
+  if (!value) return 0;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 0;
+  const now = new Date();
+  const utcNow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const utcDate = Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
+  const diff = Math.floor((utcNow - utcDate) / 86400000);
+  return diff < 0 ? 0 : diff;
 }
 
 function sumBy<T>(rows: T[], getter: (row: T) => number): number {
