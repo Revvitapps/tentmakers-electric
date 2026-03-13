@@ -31,7 +31,7 @@ export default async function InternalLayout({ children }: { children: ReactNode
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-medium text-zinc-700">{profile.full_name}</span>
+              <span className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-medium text-zinc-700">{profile.full_name.toUpperCase()}</span>
               <form action={signOutAction}>
                 <Button type="submit" variant="outline" size="sm" className="rounded-xl">
                   Sign out

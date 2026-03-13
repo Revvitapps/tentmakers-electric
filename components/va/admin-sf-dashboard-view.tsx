@@ -18,6 +18,10 @@ const usd = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
+function upperName(value: string) {
+  return (value || "").toUpperCase();
+}
+
 export function AdminSfDashboardView({ data }: AdminSfDashboardViewProps) {
   const [bucket, setBucket] = useState<VaBucketKey | null>(null);
 
@@ -148,10 +152,10 @@ export function AdminSfDashboardView({ data }: AdminSfDashboardViewProps) {
                   </td>
                   <td>{row.daysOpen}</td>
                   <td>{row.date || "-"}</td>
-                  <td>{row.customer}</td>
+                  <td>{upperName(row.customer)}</td>
                   <td>{row.status}</td>
                   <td>{row.source}</td>
-                  <td>{row.owner}</td>
+                  <td>{upperName(row.owner)}</td>
                   <td className={styles.money}>{usd.format(row.amount)}</td>
                 </tr>
               ))}

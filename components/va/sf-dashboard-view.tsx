@@ -18,6 +18,10 @@ const usd = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
+function upperName(value: string) {
+  return (value || "").toUpperCase();
+}
+
 export function SfDashboardView({ data }: SfDashboardViewProps) {
   const [drill, setDrill] = useState<DrillKey>("prospects");
 
@@ -29,10 +33,10 @@ export function SfDashboardView({ data }: SfDashboardViewProps) {
         headers: ["Contact Date", "Customer", "Source", "Status", "Owner", "Potential"],
         rows: data.cro.prospects.rows.map((row) => [
           row.contactDate || "-",
-          row.customer,
+          upperName(row.customer),
           row.source,
           row.status,
-          row.owner,
+          upperName(row.owner),
           usd.format(row.potentialValue),
         ]),
       };
@@ -47,7 +51,7 @@ export function SfDashboardView({ data }: SfDashboardViewProps) {
           row.startDate || "-",
           row.completedDate || "-",
           row.paidDate || "-",
-          row.customer,
+          upperName(row.customer),
           row.source,
           row.status,
           usd.format(row.amountPaid),
@@ -59,14 +63,14 @@ export function SfDashboardView({ data }: SfDashboardViewProps) {
       title: "Outstanding Receivables",
       subtitle: "Customers who still owe money and open amount due.",
       headers: ["Due Date", "Start", "Customer", "Source", "Status", "Amount Due"],
-      rows: data.cro.outstanding.rows.map((row) => [
-        row.dueDate || "-",
-        row.startDate || "-",
-        row.customer,
-        row.source,
-        row.status,
-        usd.format(row.amountDue),
-      ]),
+        rows: data.cro.outstanding.rows.map((row) => [
+          row.dueDate || "-",
+          row.startDate || "-",
+          upperName(row.customer),
+          row.source,
+          row.status,
+          usd.format(row.amountDue),
+        ]),
     };
   }, [data, drill]);
 

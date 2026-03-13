@@ -10,7 +10,11 @@ export function InternalNav({ role, followUpsDue }: { role: "VA" | "Joe"; follow
   const pathname = usePathname();
   const visibleItems =
     role === "Joe"
-      ? [{ href: "/owner", label: "Owner Dashboard" }, { href: "/sf-dashboard", label: "Financial View" }]
+      ? [
+          { href: "/owner", label: "Owner Dashboard" },
+          { href: "/admin", label: "VA Dashboard" },
+          { href: "/sf-dashboard", label: "Financial View" },
+        ]
       : [{ href: "/admin", label: "Admin Dashboard" }, { href: "/dashboard", label: "Pipeline View" }];
 
   return (
