@@ -1,7 +1,7 @@
 import { LoginForm } from "@/components/va/login-form";
 
 export default function LoginPage({ searchParams }: { searchParams: { redirect?: string } }) {
-  const redirectTo = searchParams.redirect || "/admin";
+  const redirectTo = searchParams.redirect || "/dashboard";
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">

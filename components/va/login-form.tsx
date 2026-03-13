@@ -45,7 +45,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
       }
 
       toast.success("Welcome back.");
-      router.push(result.data?.redirectTo || redirectTo);
+      router.push(redirectTo);
       router.refresh();
     });
   });

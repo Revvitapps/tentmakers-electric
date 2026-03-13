@@ -121,7 +121,83 @@ export function SfDashboardView({ data }: SfDashboardViewProps) {
         />
         <Kpi label="Open Jobs" value={String(data.totals.openJobs)} />
         <Kpi label="Open Estimates" value={String(data.totals.openEstimates)} />
+        <Kpi label="Closed Jobs" value={String(data.totals.completedJobs)} />
+        <Kpi label="Booked Revenue" value={usd.format(data.totals.bookedRevenue)} />
         <Kpi label="Acceptance Rate" value={`${data.totals.estimateAcceptanceRate}%`} />
+      </section>
+
+      <section className={styles.section}>
+        <header className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Attribution Snapshot</h2>
+          <span className={styles.sectionMeta}>Includes attributed and unattributed source totals.</span>
+        </header>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Bucket</th>
+                <th>Total Count</th>
+                <th>Total Value</th>
+                <th>Unattributed Count</th>
+                <th>Unattributed Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Prospects</td>
+                <td>{data.cro.prospects.count.toLocaleString()}</td>
+                <td className={styles.money}>{usd.format(data.cro.prospects.potentialRevenue)}</td>
+                <td>{data.cro.prospects.unattributedCount.toLocaleString()}</td>
+                <td className={styles.money}>{usd.format(data.cro.prospects.unattributedPotentialRevenue)}</td>
+              </tr>
+              <tr>
+                <td>Closed / Paid Jobs</td>
+                <td>{data.cro.paidJobs.count.toLocaleString()}</td>
+                <td className={styles.money}>{usd.format(data.cro.paidJobs.paidRevenue)}</td>
+                <td>{data.cro.paidJobs.unattributedCount.toLocaleString()}</td>
+                <td className={styles.money}>{usd.format(data.cro.paidJobs.unattributedPaidRevenue)}</td>
+              </tr>
+              <tr>
+                <td>Outstanding</td>
+                <td>{data.cro.outstanding.count.toLocaleString()}</td>
+                <td className={styles.money}>{usd.format(data.cro.outstanding.amountDue)}</td>
+                <td>{data.cro.outstanding.unattributedCount.toLocaleString()}</td>
+                <td className={styles.money}>{usd.format(data.cro.outstanding.unattributedAmountDue)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <header className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>Lead Source Revenue</h2>
+          <span className={styles.sectionMeta}>Service Fusion source tags with unattributed included.</span>
+        </header>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Jobs</th>
+                <th>Estimates</th>
+                <th>Revenue</th>
+                <th>Share of Booked</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.sourceRows.map((row) => (
+                <tr key={`source-${row.source}`}>
+                  <td>{row.source}</td>
+                  <td>{row.jobs.toLocaleString()}</td>
+                  <td>{row.estimates.toLocaleString()}</td>
+                  <td className={styles.money}>{usd.format(row.revenue)}</td>
+                  <td>{row.shareOfBookedRevenue}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className={styles.section}>

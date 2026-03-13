@@ -71,9 +71,8 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isLoginRoute && user) {
-    const { data: profile } = await (supabase as any).from("profiles").select("role").eq("id", user.id).maybeSingle();
     const url = request.nextUrl.clone();
-    url.pathname = profile?.role === "Joe" ? "/owner" : "/admin";
+    url.pathname = "/dashboard";
     url.search = "";
     return NextResponse.redirect(url);
   }

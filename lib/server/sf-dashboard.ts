@@ -1,4 +1,5 @@
 import { sfFetch } from "@/lib/sfClient";
+import { unstable_cache } from "next/cache";
 
 type AnyRecord = Record<string, unknown>;
 
@@ -59,6 +60,8 @@ export type SfDashboardData = {
     prospects: {
       count: number;
       potentialRevenue: number;
+      unattributedCount: number;
+      unattributedPotentialRevenue: number;
       rows: Array<{
         id: string;
         customer: string;
@@ -72,6 +75,8 @@ export type SfDashboardData = {
     paidJobs: {
       count: number;
       paidRevenue: number;
+      unattributedCount: number;
+      unattributedPaidRevenue: number;
       rows: Array<{
         id: string;
         customer: string;
@@ -86,6 +91,8 @@ export type SfDashboardData = {
     outstanding: {
       count: number;
       amountDue: number;
+      unattributedCount: number;
+      unattributedAmountDue: number;
       rows: Array<{
         id: string;
         customer: string;
@@ -164,7 +171,16 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
   const today = new Date();
   const start = range?.start ?? `${today.getUTCFullYear()}-01-01`;
   const end = range?.end ?? today.toISOString().slice(0, 10);
+  return getCachedSfDashboardData(start, end);
+}
 
+const getCachedSfDashboardData = unstable_cache(
+  async (start: string, end: string) => buildSfDashboardData(start, end),
+  ["sf-dashboard-v3"],
+  { revalidate: 60 }
+);
+
+async function buildSfDashboardData(start: string, end: string): Promise<SfDashboardData> {
   const [estimatesRaw, jobsRaw] = await Promise.all([
     fetchCollection("estimates"),
     fetchCollection("jobs"),
@@ -381,16 +397,37 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
     prospects: {
       count: prospectsRows.length,
       potentialRevenue: round2(sumBy(prospectsRows, (row) => row.potentialValue)),
+      unattributedCount: prospectsRows.filter((row) => row.source === "Unattributed").length,
+      unattributedPotentialRevenue: round2(
+        sumBy(
+          prospectsRows.filter((row) => row.source === "Unattributed"),
+          (row) => row.potentialValue
+        )
+      ),
       rows: prospectsRows,
     },
     paidJobs: {
       count: paidJobsRows.length,
       paidRevenue: round2(sumBy(paidJobsRows, (row) => row.amountPaid)),
+      unattributedCount: paidJobsRows.filter((row) => row.source === "Unattributed").length,
+      unattributedPaidRevenue: round2(
+        sumBy(
+          paidJobsRows.filter((row) => row.source === "Unattributed"),
+          (row) => row.amountPaid
+        )
+      ),
       rows: paidJobsRows,
     },
     outstanding: {
       count: outstandingRows.length,
       amountDue: round2(sumBy(outstandingRows, (row) => row.amountDue)),
+      unattributedCount: outstandingRows.filter((row) => row.source === "Unattributed").length,
+      unattributedAmountDue: round2(
+        sumBy(
+          outstandingRows.filter((row) => row.source === "Unattributed"),
+          (row) => row.amountDue
+        )
+      ),
       rows: outstandingRows,
     },
   };
