@@ -19,10 +19,10 @@ const usd = new Intl.NumberFormat("en-US", {
 });
 
 export function AdminSfDashboardView({ data }: AdminSfDashboardViewProps) {
-  const [bucket, setBucket] = useState<VaBucketKey>("new");
+  const [bucket, setBucket] = useState<VaBucketKey | null>(null);
 
   const bucketConfig = useMemo(() => {
-    if (bucket === "new") {
+    if (bucket === null || bucket === "new") {
       return {
         title: "New Leads (0-1 Day)",
         subtitle: "Immediate first touch queue.",
@@ -109,6 +109,16 @@ export function AdminSfDashboardView({ data }: AdminSfDashboardViewProps) {
         <Kpi label="Open Jobs" value={String(data.totals.openJobs)} />
       </section>
 
+      {!bucket ? (
+        <section className={styles.section}>
+          <header className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Pick a Queue to Drill Down</h2>
+            <span className={styles.sectionMeta}>Use the four follow-up cards above to load individual lead rows.</span>
+          </header>
+        </section>
+      ) : null}
+
+      {bucket ? (
       <section className={styles.section}>
         <header className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{bucketConfig.title}</h2>
@@ -149,6 +159,7 @@ export function AdminSfDashboardView({ data }: AdminSfDashboardViewProps) {
           </table>
         </div>
       </section>
+      ) : null}
     </div>
   );
 }

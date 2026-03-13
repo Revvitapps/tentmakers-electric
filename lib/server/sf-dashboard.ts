@@ -272,15 +272,59 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 20);
 
-  const prospectsRows = estimates
-    .map((item) => ({
-      id: extractId(item),
-      customer: extractCustomer(item),
-      source: extractSource(item),
-      status: extractStatus(item),
-      contactDate: extractDate(item) ?? "",
-      owner: extractOwner(item),
-      potentialValue: round2(extractAmount(item)),
+  const openPipeline = [
+    ...estimates
+      .filter((item) => !isClosedLikeStatus(extractStatus(item)))
+      .map((item) => ({
+        id: extractId(item),
+        type: "Estimate" as const,
+        customer: extractCustomer(item),
+        status: extractStatus(item),
+        source: extractSource(item),
+        owner: extractOwner(item),
+        amount: round2(extractAmount(item)),
+        date: extractDate(item) ?? "",
+      })),
+    ...jobs
+      .filter((item) => !isClosedLikeStatus(extractStatus(item)))
+      .map((item) => ({
+        id: extractId(item),
+        type: "Job" as const,
+        customer: extractCustomer(item),
+        status: extractStatus(item),
+        source: extractSource(item),
+        owner: extractOwner(item),
+        amount: round2(extractAmount(item)),
+        date: extractDate(item) ?? "",
+      })),
+  ]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 250);
+
+  const openPipelineWithAge = openPipeline.map((row) => ({
+    ...row,
+    daysOpen: diffDaysFromToday(row.date),
+  }));
+
+  const va = {
+    targetCloseRate: 80,
+    currentCloseRate: totals.estimateAcceptanceRate,
+    newToday: openPipelineWithAge.filter((row) => row.daysOpen <= 1),
+    followUpDay2To4: openPipelineWithAge.filter((row) => row.daysOpen >= 2 && row.daysOpen <= 4),
+    followUpDay5To9: openPipelineWithAge.filter((row) => row.daysOpen >= 5 && row.daysOpen <= 9),
+    followUpDay10Plus: openPipelineWithAge.filter((row) => row.daysOpen >= 10),
+  };
+
+  const prospectsRows = openPipeline
+    .filter((row) => row.type === "Estimate")
+    .map((row) => ({
+      id: row.id,
+      customer: row.customer,
+      source: row.source,
+      status: row.status,
+      contactDate: row.date,
+      owner: row.owner,
+      potentialValue: round2(row.amount),
     }))
     .sort((a, b) => b.contactDate.localeCompare(a.contactDate));
 
@@ -349,49 +393,6 @@ export async function getSfDashboardData(range?: { start?: string; end?: string 
       amountDue: round2(sumBy(outstandingRows, (row) => row.amountDue)),
       rows: outstandingRows,
     },
-  };
-
-  const openPipeline = [
-    ...estimates
-      .filter((item) => !isClosedLikeStatus(extractStatus(item)))
-      .map((item) => ({
-        id: extractId(item),
-        type: "Estimate" as const,
-        customer: extractCustomer(item),
-        status: extractStatus(item),
-        source: extractSource(item),
-        owner: extractOwner(item),
-        amount: round2(extractAmount(item)),
-        date: extractDate(item) ?? "",
-      })),
-    ...jobs
-      .filter((item) => !isClosedLikeStatus(extractStatus(item)))
-      .map((item) => ({
-        id: extractId(item),
-        type: "Job" as const,
-        customer: extractCustomer(item),
-        status: extractStatus(item),
-        source: extractSource(item),
-        owner: extractOwner(item),
-        amount: round2(extractAmount(item)),
-        date: extractDate(item) ?? "",
-      })),
-  ]
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 250);
-
-  const openPipelineWithAge = openPipeline.map((row) => ({
-    ...row,
-    daysOpen: diffDaysFromToday(row.date),
-  }));
-
-  const va = {
-    targetCloseRate: 80,
-    currentCloseRate: totals.estimateAcceptanceRate,
-    newToday: openPipelineWithAge.filter((row) => row.daysOpen <= 1),
-    followUpDay2To4: openPipelineWithAge.filter((row) => row.daysOpen >= 2 && row.daysOpen <= 4),
-    followUpDay5To9: openPipelineWithAge.filter((row) => row.daysOpen >= 5 && row.daysOpen <= 9),
-    followUpDay10Plus: openPipelineWithAge.filter((row) => row.daysOpen >= 10),
   };
 
   return {
@@ -567,6 +568,12 @@ function extractKnownDate(record: AnyRecord, keys: string[]): string | null {
 
   const isoDateMatch = text.match(/\d{4}-\d{2}-\d{2}/);
   if (isoDateMatch) return isoDateMatch[0];
+
+  const usDateMatch = text.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
+  if (usDateMatch) {
+    const [, mm, dd, yyyy] = usDateMatch;
+    return `${yyyy}-${mm}-${dd}`;
+  }
 
   const parsed = new Date(text);
   if (!Number.isNaN(parsed.getTime())) {
