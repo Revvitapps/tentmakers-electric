@@ -244,10 +244,12 @@ function parseCollectionPayload(payload: unknown): { items: AnyRecord[]; pageCou
     ?? (isRecord(listPayload.pagination) ? listPayload.pagination : null);
 
   const pageCount = meta ? toNumber(meta.pageCount ?? meta.page_count ?? meta.total_pages) : undefined;
+  const normalizedPageCount =
+    typeof pageCount === "number" && Number.isFinite(pageCount) && pageCount > 0 ? Math.floor(pageCount) : undefined;
 
   return {
     items,
-    pageCount: Number.isFinite(pageCount) && pageCount > 0 ? Math.floor(pageCount) : undefined,
+    pageCount: normalizedPageCount,
   };
 }
 
